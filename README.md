@@ -1,10 +1,17 @@
-# pi-eink-dashboard
+# epaper-desktop-dashboard
 
-樹莓派上跑的桌面資訊看板。把天氣 / AQI / AI 額度 / 作息提醒定時更新,
-以 **live HTML** 供 **HyRead Gaze Note Plus**(7.8" e-ink,1404×1872,Android 11)
+樹莓派上跑的桌面資訊看板。把天氣 / AQI / AI 額度(Claude·Codex)/ Steam 狀態 / 作息提醒
+定時更新,以 **live HTML** 供 **HyRead Gaze Note Plus**(7.8" e-ink,1404×1872,Android 11)
 瀏覽器顯示。Pi 透過 **ADB** 控制裝置刷新(喚醒 + 重載 + e-ink full refresh)。
 
-不產圖:FastAPI 直接吐 HTML,省磁碟與記憶體(無需 Chromium)。
+不產圖:FastAPI 直接吐 HTML,省磁碟與記憶體(無需 Chromium)。另附一個 Windows
+系統匣桌面 App(`run_app.bat`):背景常駐 + 可叫出的預覽視窗,直接顯示區網網址與 IP。
+
+## 預覽
+
+實機 e-ink 畫面(`python -m app.device.adb screencap`):
+
+![電子紙看板預覽](docs/preview.png)
 
 ## 架構
 
@@ -16,7 +23,7 @@
 
 三層獨立:任一資料源失敗,渲染讀舊快取續畫,只標精簡資料年齡,畫面不空白。
 啟動時各來源並行抓取,不讓單一逾時串行拖慢整體啟動。天氣與 AQI 每小時整點抓取;
-Claude、Codex 與本機作息提醒每 10 分鐘更新。
+Steam 狀態每半小時(:00、:30);Claude、Codex 與本機作息提醒每 10 分鐘更新。
 
 - `app/collectors/` 各來源收集器(各依自己節奏抓,寫入快取)
 - `app/render/` view-model(`view.py`)→ Jinja2 模板 → HTML 字串(`html.py`)
@@ -62,6 +69,8 @@ Windows 要背景常駐 + 系統匣預覽視窗:雙擊 `run_app.bat`(或 `python
 - [x] 架構轉為 live HTML(移除產圖 / Playwright / Pillow)
 - [x] ADB 控制層(connect/open/refresh/wake/screencap);**已在實機 K08P 驗證**
 - [x] Claude / Codex 額度皆實測真資料;參考 openusage。OpenRouter 程式保留但不啟用
+- [x] Steam 狀態卡:帳號摘要(等級/成就/徽章/近兩週時數)+ 最近玩最多遊戲的成就進度
+- [x] Windows 系統匣桌面 App(`run_app.bat`):背景服務 + 預覽視窗 + 區網 IP
 - [x] 右側本機作息提醒卡:日常時段 + 4 次更新/40 分鐘工作循環
 - [x] 天氣 / AQI 每小時整點更新;Claude / Codex / 作息每 10 分鐘更新
 - [x] 裝置全螢幕:Fully Kiosk 已裝並設定,實機驗證滿版(無系統列/工具列/網址列)
