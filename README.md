@@ -40,6 +40,9 @@ python -m app.main
 開 http://localhost:8000/ 看看板。`/health` 保留頂層 `ok`,各啟用來源另回報
 `available`、`age_seconds`、`stale`;超過兩倍收集週期才算 stale。
 
+Windows 要背景常駐 + 系統匣預覽視窗:雙擊 `run_app.bat`(或 `python -m app.desktop`),
+見 [GUIDE.md](GUIDE.md) §6.5。
+
 ## 驗證
 
 ```powershell

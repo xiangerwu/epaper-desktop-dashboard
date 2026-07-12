@@ -17,3 +17,10 @@ def render(auto_refresh_seconds: int = 0) -> str:
     ctx = view.build()
     ctx["auto_refresh_seconds"] = auto_refresh_seconds
     return _env.get_template("dashboard.html.j2").render(**ctx)
+
+
+def render_app_preview(share_url: str, ip: str, port: int) -> str:
+    """桌面 App 預覽頁:頂列顯示 LAN IP 與看板網址,主體內嵌 `/` 即時看板。"""
+    return _env.get_template("app_preview.html.j2").render(
+        share_url=share_url, ip=ip, port=port,
+    )

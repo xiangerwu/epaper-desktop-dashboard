@@ -156,7 +156,28 @@ python -m app.device.adb screencap out.png   # 抓裝置畫面回來驗證
 切換只改兩處:**伺服器主機的區網 IP**,填進 (a) Fully 的 Start URL、(b) `.env` 的 `DASHBOARD_URL`。
 Pi 完整步驟(systemd 開機自啟、`apt install adb`、WiFi ADB)見 [DEPLOY.md](DEPLOY.md)。
 
-查主機區網 IP:Windows `ipconfig`;Pi/Linux `hostname -I`。
+查主機區網 IP:Windows `ipconfig`;Pi/Linux `hostname -I`。桌面背景 App(下節)會自動
+偵測並顯示區網 IP,免手動查。
+
+---
+
+## 6.5 桌面背景 App(Windows 系統匣)
+
+不想開著終端機、又要隨手看預覽與區網 IP 時用這個。服務跑在背景,縮到系統匣;需要時叫出
+一個內嵌即時看板的視窗,頂列直接顯示可分享給裝置的看板網址。
+
+```powershell
+.\.venv\Scripts\python -m pip install -r requirements.txt   # 首次:裝 pywebview/pystray/pythonnet
+```
+
+啟動:**雙擊專案根目錄的 `run_app.bat`**(用 `pythonw` 無主控台),或手動
+`.\.venv\Scripts\python -m app.desktop`(會保留 log,除錯用)。
+
+- **系統匣圖示**右鍵選單:顯示預覽 / 用瀏覽器開啟看板 / 一列顯示 `區網IP:埠` / 結束。
+  左鍵(或雙擊)圖示 = 顯示預覽。
+- **關閉視窗只是隱藏**,服務續跑;要真的結束請用選單「結束」(會收掉服務、釋放埠)。
+- 埠沿用 `_choose_port()`:主埠被占就自動換備用埠,視窗與網址會跟著顯示實際埠。
+- 僅 Windows;Pi 端仍用 `python -m app.main` / systemd(見 [DEPLOY.md](DEPLOY.md)),不受影響。
 
 ---
 

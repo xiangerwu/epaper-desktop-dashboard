@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>看板預覽</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
+    display:flex; flex-direction:column; background:#f4f4f5; color:#18181b;
+  }
+  .bar {
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    padding:10px 16px; background:#fff; border-bottom:1px solid #e4e4e7;
+  }
+  .dot { width:10px; height:10px; border-radius:50%; background:#a1a1aa; flex:none; }
+  .dot.ok { background:#22c55e; }
+  .dot.bad { background:#ef4444; }
+  .label { font-size:12px; color:#71717a; }
+  .url {
+    font-size:15px; font-weight:600; font-variant-numeric:tabular-nums;
+    user-select:all;
+  }
+  .grow { flex:1 1 auto; }
+  button, a.btn {
+    font:inherit; font-size:13px; text-decoration:none; cursor:pointer;
+    border:1px solid #d4d4d8; background:#fafafa; color:#18181b;
+    padding:6px 12px; border-radius:8px; white-space:nowrap;
+  }
+  button:hover, a.btn:hover { background:#f0f0f1; }
+  #copied { font-size:12px; color:#22c55e; visibility:hidden; }
+  .frame { flex:1 1 auto; border:0; width:100%; background:#fff; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <span id="dot" class="dot" title="服務狀態"></span>
+    <div>
+      <div class="label">看板網址(給裝置 / 其他機器開)</div>
+      <span class="url">{{ share_url }}</span>
+    </div>
+    <span class="grow"></span>
+    <span id="copied">已複製</span>
+    <button id="copy">複製網址</button>
+    <a class="btn" href="{{ share_url }}" target="_blank" rel="noopener">用瀏覽器開啟</a>
+  </div>
+  <iframe class="frame" src="/" title="看板即時預覽"></iframe>
+
+  <script>
+    const shareUrl = {{ share_url | tojson }};
+    const copied = document.getElementById("copied");
+    document.getElementById("copy").addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(shareUrl); } catch (e) {}
+      copied.style.visibility = "visible";
+      setTimeout(() => { copied.style.visibility = "hidden"; }, 1500);
+    });
+
+    const dot = document.getElementById("dot");
+    async function ping() {
+      try {
+        const r = await fetch("/health", { cache: "no-store" });
+        const j = await r.json();
+        dot.className = "dot " + (j.ok ? "ok" : "bad");
+        dot.title = j.ok ? "服務正常" : "服務異常";
+      } catch (e) {
+        dot.className = "dot bad";
+        dot.title = "無法連線";
+      }
+    }
+    ping();
+    setInterval(ping, 5000);
+  </script>
+</body>
+</html>

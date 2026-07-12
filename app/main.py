@@ -10,10 +10,10 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from . import cache, scheduler
+from . import cache, netinfo, scheduler
 from .collectors import COLLECTORS
 from .config import settings
 from .render import html
@@ -36,6 +36,15 @@ app = FastAPI(title="pi-eink-dashboard", lifespan=lifespan)
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     return html.render(auto_refresh_seconds=settings.html_auto_refresh_seconds)
+
+
+@app.get("/app", response_class=HTMLResponse)
+async def app_preview(request: Request):
+    """桌面 App 的預覽頁:顯示 LAN IP 與可分享看板網址,內嵌 `/` 即時看板。"""
+    ip = netinfo.lan_ip()
+    port = request.url.port or settings.port
+    share_url = f"http://{ip}:{port}/"
+    return html.render_app_preview(share_url=share_url, ip=ip, port=port)
 
 
 @app.get("/refresh")
