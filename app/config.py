@@ -44,6 +44,11 @@ class Settings:
     cwa_api_key: str = os.getenv("CWA_API_KEY", "")
     cwa_location: str = os.getenv("CWA_LOCATION", "臺中市")
 
+    # --- 空氣品質: 環境部 MOENV ---
+    moenv_api_key: str = os.getenv("MOENV_API_KEY", "")
+    aqi_site: str = os.getenv("AQI_SITE", "斗六")
+    aqi_county: str = os.getenv("AQI_COUNTY", "雲林縣")
+
     # --- AI 額度 ---
     # Claude 走 ~/.claude/.credentials.json 的 oauth token;Codex 走 ~/.codex/auth.json。
     # 兩者不吃 API key,見對應 collector。OpenRouter 才需自填金鑰:

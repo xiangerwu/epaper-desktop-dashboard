@@ -2,12 +2,14 @@
 
 失敗不拖垮其他源:base.Collector.run 會吞例外並保留舊快取。
 """
+from .air import AirQualityCollector
 from .anthropic_usage import AnthropicUsageCollector
 from .codex_usage import CodexUsageCollector
 from .weather import WeatherCollector
 
 COLLECTORS = [
     WeatherCollector(),
+    AirQualityCollector(),
     AnthropicUsageCollector(),
     CodexUsageCollector(),
 ]

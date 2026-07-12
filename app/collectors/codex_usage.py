@@ -60,7 +60,7 @@ class CodexUsageCollector(Collector):
 
         # 結構: rate_limit.primary_window(5時) / secondary_window(7日),含 used_percent、reset_at(epoch)
         rl = data.get("rate_limit") or {}
-        pairs = (("5 時", rl.get("primary_window")), ("7 日", rl.get("secondary_window")))
+        pairs = (("5 小時用量", rl.get("primary_window")), ("7 日內用量", rl.get("secondary_window")))
         lines = []
         for label, win in pairs:
             if win and win.get("used_percent") is not None:

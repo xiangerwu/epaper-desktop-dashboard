@@ -11,7 +11,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from . import cache, scheduler
 from .collectors import COLLECTORS
@@ -36,6 +36,13 @@ app = FastAPI(title="pi-eink-dashboard", lifespan=lifespan)
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     return html.render(auto_refresh_seconds=settings.html_auto_refresh_seconds)
+
+
+@app.get("/refresh")
+async def refresh_now():
+    """立即刷新按鈕:當場並行抓一輪各來源,再導回看板顯示最新值。"""
+    await asyncio.gather(*(c.run() for c in COLLECTORS))
+    return RedirectResponse(url="/", status_code=303)
 
 
 @app.get("/health")

@@ -68,7 +68,7 @@ class AnthropicUsageCollector(Collector):
             data = r.json()
 
         lines = []
-        for key, label in (("five_hour", "5 時"), ("seven_day", "7 日")):
+        for key, label in (("five_hour", "5 小時用量"), ("seven_day", "7 日內用量")):
             b = data.get(key)
             if b and b.get("utilization") is not None:
                 lines.append({

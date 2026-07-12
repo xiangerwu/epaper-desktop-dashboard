@@ -1,90 +1,141 @@
-<!doctype html>
+{% import 'icons.html.j2' as ic %}<!doctype html>
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 {% if auto_refresh_seconds %}<meta http-equiv="refresh" content="{{ auto_refresh_seconds }}">{% endif %}
 <style>
-  /* e-ink: 純白底、純黑字、粗線、無漸層。尺寸用 vw 自適應(裝置 2x → CSS 寬約 702px) */
-  :root { --ink:#000; --mute:#555; --soft:#e6e6e6; }
+  /* e-ink 橫向佈局。尺寸用 vmin(=短邊/高)基準,橫直向皆一致;字級與框線已再縮小 */
+  :root { --ink:#000; --mute:#555; --soft:#e2e2e2; }
   * { margin:0; padding:0; box-sizing:border-box; }
-  html,body { background:#fff; color:var(--ink);
+  html,body { height:100%; background:#fff; color:var(--ink);
     font-family:"Noto Sans CJK TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
     -webkit-font-smoothing:none; }
-  .page { min-height:100vh; padding:4vw; display:flex; flex-direction:column; gap:3vw; }
+  .page { height:100vh; padding:3vmin 3.2vmin; display:flex; flex-direction:column; gap:2.2vmin; }
 
-  header { display:flex; justify-content:space-between; align-items:baseline;
-    border-bottom:0.6vw solid var(--ink); padding-bottom:2vw; }
-  header .date { font-size:5.6vw; font-weight:800; }
-  header .week { font-size:3.2vw; color:var(--mute); }
+  .ic { width:1em; height:1em; display:inline-block; vertical-align:-0.14em;
+    fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .ic-fill { fill:currentColor; stroke:none; }  /* 品牌標(claude/openai)官方 fill 路徑 */
 
-  .card { border:0.5vw solid var(--ink); border-radius:2vw; padding:2.6vw 3vw; }
-  .card h2 { font-size:3.2vw; font-weight:800; margin-bottom:1.8vw;
+  header { display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+    border-bottom:0.4vmin solid var(--ink); padding-bottom:1.6vmin; }
+  header .date { font-size:4.4vmin; font-weight:800; }
+  header .right { justify-self:end; display:flex; align-items:center; gap:1.4vmin;
+    font-size:2.5vmin; color:var(--mute); }
+  header .right .ic { font-size:2.9vmin; color:var(--ink); }
+  .refresh { justify-self:center; display:inline-flex; align-items:center; gap:1vmin;
+    border:0.35vmin solid var(--ink); border-radius:5vmin; padding:0.9vmin 2.8vmin;
+    font-size:2.7vmin; font-weight:800; color:var(--ink); text-decoration:none; }
+  .refresh .ic { font-size:2.9vmin; }
+  .refresh:active { background:var(--ink); color:#fff; }
+
+  .main { flex:1; display:flex; gap:2.2vmin; min-height:0; }
+  .col-left { flex:1; display:flex; flex-direction:column; gap:2.2vmin; }
+  .col-right { flex:1.12; display:flex; gap:2.2vmin; }
+  .col-right > .card { flex:1; }
+  .col-left .cal { flex:1; }
+
+  .card { border:0.4vmin solid var(--ink); border-radius:2vmin; padding:2.2vmin 2.6vmin; }
+  .card h2 { font-size:2.8vmin; font-weight:800; margin-bottom:1.6vmin;
     display:flex; justify-content:space-between; align-items:center; }
-  .card h2 .age { font-size:2.6vw; font-weight:500; color:var(--mute); }
+  .card h2 .ttl { display:flex; align-items:center; gap:1.3vmin; }
+  .card h2 .ttl .ic { font-size:3.3vmin; }
+  .card h2 .age { font-size:2.2vmin; font-weight:500; color:var(--mute); }
 
-  .weather .row { display:flex; align-items:flex-end; gap:3.5vw; }
-  .weather .big { font-size:10vw; font-weight:800; line-height:1; }
-  .weather .meta { font-size:3.2vw; color:var(--mute); line-height:1.45; }
+  /* 天氣 */
+  .weather .row { display:flex; align-items:center; gap:1.8vmin; }
+  .weather .wicon { font-size:9.5vmin; line-height:0; }
+  .weather .big { font-size:8.4vmin; font-weight:800; line-height:1; }
+  .weather .vline { align-self:stretch; width:0.35vmin; background:var(--soft); margin:0.6vmin 0.6vmin; }
+  .weather .meta { font-size:2.7vmin; color:var(--mute); line-height:1.5; }
+  .weather .pill { display:inline-flex; align-items:center; gap:1vmin; margin-top:1.4vmin;
+    white-space:nowrap; border:0.35vmin solid var(--ink); border-radius:5vmin; padding:0.7vmin 2vmin;
+    font-size:2.4vmin; color:var(--ink); }
+  .weather .pill .ic { font-size:2.7vmin; }
 
-  /* AI 額度: 兩格並排 */
-  .ai-row { display:flex; gap:3vw; }
-  .ai-row .card { flex:1; }
-  .ai-item { margin-bottom:2.4vw; }
-  .ai-item:last-child { margin-bottom:0; }
+  /* AI 額度 */
+  .ai-item:not(:last-child) { border-bottom:0.3vmin dashed var(--soft);
+    padding-bottom:1.8vmin; margin-bottom:1.8vmin; }
   .ai-item .top { display:flex; justify-content:space-between; align-items:baseline; }
-  .ai-item .lab { font-size:3vw; font-weight:700; }
-  .ai-item .pct { font-size:3vw; font-weight:800; }
-  .ai-item .bar { margin-top:1vw; height:2.6vw; border:0.4vw solid var(--ink);
-    border-radius:0.8vw; overflow:hidden; }
+  .ai-item .lab { font-size:2.7vmin; font-weight:800; }
+  .ai-item .pct { font-size:2.7vmin; font-weight:800; }
+  .ai-item .bar { margin-top:1vmin; height:2.3vmin; border:0.35vmin solid var(--ink);
+    border-radius:0.8vmin; overflow:hidden; }
   .ai-item .bar > span { display:block; height:100%; background:var(--ink); }
-  .ai-item .sub { font-size:2.4vw; color:var(--mute); margin-top:0.6vw; }
-  .ai-empty { font-size:2.8vw; color:var(--mute); }
+  .ai-item .sub { font-size:2.1vmin; color:var(--mute); margin-top:0.6vmin; }
+  .ai-empty { font-size:2.5vmin; color:var(--mute); }
 
-  footer { margin-top:auto; text-align:center; font-size:2.6vw; color:var(--mute);
-    border-top:0.4vw solid var(--soft); padding-top:1.8vw; }
+  /* 今日行程 */
+  .cal h2 .count { font-size:2.5vmin; font-weight:600; color:var(--mute); }
+  .cal-item { display:flex; align-items:center; gap:2vmin; font-size:3vmin;
+    padding:1.5vmin 0; border-bottom:0.3vmin solid var(--soft); }
+  .cal-item:last-child { border-bottom:none; }
+  .cal-item .ic { font-size:3vmin; color:var(--mute); }
+  .cal-item .time { font-weight:800; width:20%; }
+
+  footer { text-align:center; font-size:2.3vmin; color:var(--mute);
+    border-top:0.35vmin solid var(--soft); padding-top:1.4vmin; }
+  footer .ic { font-size:2.4vmin; margin-right:0.8vmin; }
 </style>
 </head>
 <body>
 <div class="page">
   <header>
     <div class="date">{{ generated_at.split('  ')[0] }}</div>
-    <div class="week">星期{{ weekday }} · {{ generated_at.split('  ')[1] }}</div>
+    <a class="refresh" href="/refresh">{{ ic.refresh() }} 立即刷新</a>
+    <div class="right">星期{{ weekday }} · {{ generated_at.split('  ')[1] }} {{ ic.wifi() }}</div>
   </header>
 
-  <section class="card weather">
-    <h2>天氣 {% if weather %}· {{ weather.location }}{% endif %}<span class="age">{{ weather_age }}</span></h2>
-    {% if weather %}
-    <div class="row">
-      <div class="big">{{ weather.max_t }}°</div>
-      <div class="meta">
-        {{ weather.desc }}<br>
-        低 {{ weather.min_t }}° · 降雨 {{ weather['pop'] }}%{% if weather.comfort %}<br>{{ weather.comfort }}{% endif %}
-      </div>
-    </div>
-    {% else %}
-    <div class="meta">尚無天氣資料</div>
-    {% endif %}
-  </section>
+  <div class="main">
+    <div class="col-left">
+      <section class="card weather">
+        <h2><span class="ttl">天氣 {% if weather %}· {{ weather.location }}{% endif %}</span><span class="age">{{ weather_age }}</span></h2>
+        {% if weather %}
+        <div class="row">
+          <span class="wicon">{{ ic.weather(weather_icon) }}</span>
+          <div class="big">{{ weather.max_t }}°</div>
+          <div class="vline"></div>
+          <div class="meta">
+            {{ weather.desc }}<br>
+            低 {{ weather.min_t }}° · 降雨 {{ weather['pop'] }}%
+            {% if air and air.aqi is not none %}<br><span class="pill">{{ ic.leaf() }} 空氣{{ air.status }} · AQI {{ air.aqi }}</span>
+            {% elif weather.comfort %}<br><span class="pill">{{ ic.leaf() }} {{ weather.comfort }}</span>{% endif %}
+          </div>
+        </div>
+        {% else %}
+        <div class="meta">尚無天氣資料</div>
+        {% endif %}
+      </section>
 
-  <div class="ai-row">
-    {% for col in ai_columns %}
-    <section class="card">
-      <h2>{{ col.name }}<span class="age">{{ col.age }}</span></h2>
-      {% for q in col.lines %}
-      <div class="ai-item">
-        <div class="top"><span class="lab">{{ q.label }}</span><span class="pct">{{ q.pct }}%</span></div>
-        <div class="bar"><span style="width: {{ q.pct }}%"></span></div>
-        {% if q.detail %}<div class="sub">{{ q.detail }}</div>{% endif %}
-      </div>
-      {% else %}
-      <div class="ai-empty">{{ col.empty }}</div>
+      <section class="card cal">
+        <h2><span class="ttl">{{ ic.calendar() }} 今日行程</span><span class="count">{{ calendar|length }} 項</span></h2>
+        {% for e in calendar %}
+        <div class="cal-item">{{ ic.clock() }}<span class="time">{{ e.time }}</span><span class="title">{{ e.title }}</span></div>
+        {% else %}
+        <div class="ai-empty">今天沒有安排</div>
+        {% endfor %}
+      </section>
+    </div>
+
+    <div class="col-right">
+      {% for col in ai_columns %}
+      <section class="card">
+        <h2><span class="ttl">{% if col.icon == 'claude' %}{{ ic.claude() }}{% else %}{{ ic.openai() }}{% endif %} {{ col.name }}</span><span class="age">{{ col.age }}</span></h2>
+        {% for q in col.lines %}
+        <div class="ai-item">
+          <div class="top"><span class="lab">{{ q.label }}</span><span class="pct">{{ q.pct }}%</span></div>
+          <div class="bar"><span style="width: {{ q.pct }}%"></span></div>
+          {% if q.detail %}<div class="sub">{{ q.detail }}</div>{% endif %}
+        </div>
+        {% else %}
+        <div class="ai-empty">{{ col.empty }}</div>
+        {% endfor %}
+      </section>
       {% endfor %}
-    </section>
-    {% endfor %}
+    </div>
   </div>
 
-  <footer>頁面產生於 {{ generated_at }}</footer>
+  <footer>{{ ic.clock() }}頁面產生於 {{ generated_at.split('  ')[1] }}</footer>
 </div>
 </body>
 </html>
