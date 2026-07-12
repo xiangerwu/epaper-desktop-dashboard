@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+{% if auto_refresh_seconds %}<meta http-equiv="refresh" content="{{ auto_refresh_seconds }}">{% endif %}
+<style>
+  /* e-ink: 純白底、純黑字、粗線、無漸層。尺寸用 vw 自適應(裝置 2x → CSS 寬約 702px) */
+  :root { --ink:#000; --mute:#555; --soft:#e6e6e6; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:#fff; color:var(--ink);
+    font-family:"Noto Sans CJK TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+    -webkit-font-smoothing:none; }
+  .page { min-height:100vh; padding:4vw; display:flex; flex-direction:column; gap:3vw; }
+
+  header { display:flex; justify-content:space-between; align-items:baseline;
+    border-bottom:0.6vw solid var(--ink); padding-bottom:2vw; }
+  header .date { font-size:5.6vw; font-weight:800; }
+  header .week { font-size:3.2vw; color:var(--mute); }
+
+  .card { border:0.5vw solid var(--ink); border-radius:2vw; padding:2.6vw 3vw; }
+  .card h2 { font-size:3.2vw; font-weight:800; margin-bottom:1.8vw;
+    display:flex; justify-content:space-between; align-items:center; }
+  .card h2 .age { font-size:2.6vw; font-weight:500; color:var(--mute); }
+
+  .weather .row { display:flex; align-items:flex-end; gap:3.5vw; }
+  .weather .big { font-size:10vw; font-weight:800; line-height:1; }
+  .weather .meta { font-size:3.2vw; color:var(--mute); line-height:1.45; }
+
+  /* AI 額度: 兩格並排 */
+  .ai-row { display:flex; gap:3vw; }
+  .ai-row .card { flex:1; }
+  .ai-item { margin-bottom:2.4vw; }
+  .ai-item:last-child { margin-bottom:0; }
+  .ai-item .top { display:flex; justify-content:space-between; align-items:baseline; }
+  .ai-item .lab { font-size:3vw; font-weight:700; }
+  .ai-item .pct { font-size:3vw; font-weight:800; }
+  .ai-item .bar { margin-top:1vw; height:2.6vw; border:0.4vw solid var(--ink);
+    border-radius:0.8vw; overflow:hidden; }
+  .ai-item .bar > span { display:block; height:100%; background:var(--ink); }
+  .ai-item .sub { font-size:2.4vw; color:var(--mute); margin-top:0.6vw; }
+  .ai-empty { font-size:2.8vw; color:var(--mute); }
+
+  footer { margin-top:auto; text-align:center; font-size:2.6vw; color:var(--mute);
+    border-top:0.4vw solid var(--soft); padding-top:1.8vw; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="date">{{ generated_at.split('  ')[0] }}</div>
+    <div class="week">星期{{ weekday }} · {{ generated_at.split('  ')[1] }}</div>
+  </header>
+
+  <section class="card weather">
+    <h2>天氣 {% if weather %}· {{ weather.location }}{% endif %}<span class="age">{{ weather_age }}</span></h2>
+    {% if weather %}
+    <div class="row">
+      <div class="big">{{ weather.max_t }}°</div>
+      <div class="meta">
+        {{ weather.desc }}<br>
+        低 {{ weather.min_t }}° · 降雨 {{ weather['pop'] }}%{% if weather.comfort %}<br>{{ weather.comfort }}{% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="meta">尚無天氣資料</div>
+    {% endif %}
+  </section>
+
+  <div class="ai-row">
+    {% for col in ai_columns %}
+    <section class="card">
+      <h2>{{ col.name }}</h2>
+      {% for q in col.lines %}
+      <div class="ai-item">
+        <div class="top"><span class="lab">{{ q.label }}</span><span class="pct">{{ q.pct }}%</span></div>
+        <div class="bar"><span style="width: {{ q.pct }}%"></span></div>
+        {% if q.detail %}<div class="sub">{{ q.detail }}</div>{% endif %}
+      </div>
+      {% else %}
+      <div class="ai-empty">{{ col.empty }}</div>
+      {% endfor %}
+    </section>
+    {% endfor %}
+  </div>
+
+  <footer>更新於 {{ generated_at }}</footer>
+</div>
+</body>
+</html>
