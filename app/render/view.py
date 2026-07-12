@@ -21,6 +21,16 @@ def _age_label(age_seconds: int | None) -> str:
     return f"{m // 60} 小時前"
 
 
+def _reset_time_label(epoch: float | None) -> str:
+    """Unix epoch 秒 → 本地 月/日 時:分;無值回空字串。"""
+    if not epoch:
+        return ""
+    try:
+        return datetime.fromtimestamp(epoch).astimezone().strftime("%m/%d %H:%M")
+    except (ValueError, TypeError, OSError):
+        return ""
+
+
 def _weather_icon(desc: str) -> str:
     """依 CWA 天氣現象文字選圖示 kind。"""
     if any(k in desc for k in ("雨", "雷", "陣")):
@@ -68,12 +78,19 @@ def build() -> dict:
         **(routine_c["payload"] if routine_c else {}),
     }
 
-    # 今日行程: 尚未接 Google Calendar,先放佔位資料(見 TODO)
-    # TODO: 換成 calendar collector 的 cache.get("calendar")
-    calendar = [
-        {"time": "14:00", "title": "專案檢查"},
-        {"time": "19:30", "title": "閱讀"},
-    ]
+    steam_c = cache.get("steam")
+    steam_payload = steam_c["payload"] if steam_c else {}
+    top = steam_payload.get("top")
+    if top and isinstance(top.get("latest"), dict):
+        top = {**top, "latest": {
+            **top["latest"],
+            "unlock_label": _reset_time_label(top["latest"].get("unlock_epoch")),
+        }}
+    steam = {
+        "summary": steam_payload.get("summary"),
+        "top": top if isinstance(top, dict) else None,
+        "age": _age_label(steam_c["age_seconds"] if steam_c else None),
+    }
 
     return {
         "generated_at": now.strftime("%Y/%m/%d  %H:%M"),
@@ -84,5 +101,5 @@ def build() -> dict:
         "air": air,
         "ai_columns": ai_columns,
         "routine": routine,
-        "calendar": calendar,
+        "steam": steam,
     }

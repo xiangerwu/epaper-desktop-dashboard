@@ -49,6 +49,11 @@ class Settings:
     aqi_site: str = os.getenv("AQI_SITE", "斗六")
     aqi_county: str = os.getenv("AQI_COUNTY", "雲林縣")
 
+    # --- Steam 狀態 ---
+    # 金鑰: https://steamcommunity.com/dev/apikey;steam_id 為 64 位數 SteamID64
+    steam_api_key: str = os.getenv("STEAM_API_KEY", "")
+    steam_id: str = os.getenv("STEAM_ID", "")
+
     # --- AI 額度 ---
     # Claude 走 ~/.claude/.credentials.json 的 oauth token;Codex 走 ~/.codex/auth.json。
     # 兩者不吃 API key,見對應 collector。OpenRouter 才需自填金鑰:

@@ -12,10 +12,10 @@ log = logging.getLogger("collector")
 class Collector(abc.ABC):
     #: cache key,也是排程 job id
     source: str
-    #: 收集節奏(秒)
+    #: 收集節奏(秒);也是 /health 判斷 stale 的基準(2×)
     interval_seconds: int = 900
-    #: 非 None 時改用每小時指定分鐘的 cron 排程
-    cron_minute: int | None = None
+    #: 非 None 時改用 cron 排程,對齊時鐘分鐘。可用單值(0)或表達式("0,30")
+    cron_minute: int | str | None = None
 
     @abc.abstractmethod
     async def fetch(self) -> dict:

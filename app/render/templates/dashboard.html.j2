@@ -74,13 +74,34 @@
   .routine .routine-message { font-size:2.6vmin; line-height:1.4; }
   .routine .routine-meta { margin-top:0.8vmin; font-size:2.1vmin; color:var(--mute); }
 
-  /* 今日行程 */
-  .cal h2 .count { font-size:2.5vmin; font-weight:600; color:var(--mute); }
-  .cal-item { display:flex; align-items:center; gap:2vmin; font-size:3vmin;
-    padding:1.5vmin 0; border-bottom:0.3vmin solid var(--soft); }
-  .cal-item:last-child { border-bottom:none; }
-  .cal-item .ic { font-size:3vmin; color:var(--mute); }
-  .cal-item .time { font-weight:800; width:20%; }
+  /* Steam 狀態:左右兩欄 */
+  .steam h2 .ttl .ic { font-size:3.8vmin; }  /* 官方 logo 放大更明顯 */
+  .steam-cols { display:flex; gap:2.4vmin; }
+  /* 左:類 RPG 狀態欄(簡潔直排,標籤—數值,列間虛線) */
+  .steam-left { flex:0 0 40%; display:flex; flex-direction:column; justify-content:center;
+    padding-right:2.6vmin; border-right:0.3vmin solid var(--soft); }
+  .steam-stat { display:flex; justify-content:space-between; align-items:baseline; gap:1vmin;
+    padding:1.1vmin 0; }
+  .steam-stat:not(:last-child) { border-bottom:0.3vmin dashed var(--soft); }
+  .steam-stat .k { font-size:2.7vmin; color:var(--mute); }
+  .steam-stat .v { font-size:3.7vmin; font-weight:800; font-variant-numeric:tabular-nums; }
+  .steam-stat .v small { font-size:2.3vmin; font-weight:600; color:var(--mute); }
+  /* 右:上遊戲 / 下成就進度 */
+  .steam-right { flex:1; min-width:0; display:flex; flex-direction:column; gap:1.4vmin; }
+  .steam-seg .lab { font-size:2.1vmin; color:var(--mute); font-weight:700; margin-bottom:0.4vmin; }
+  .steam-seg .game { font-size:2.8vmin; font-weight:800; line-height:1.25;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .steam-seg .hrs { font-size:2.3vmin; color:var(--mute); font-variant-numeric:tabular-nums; }
+  .steam-seg .hrs b { color:var(--ink); font-weight:800; }
+  .steam-right .divider { border-top:0.3vmin solid var(--soft); }
+  .steam-prog .bar { margin-top:0.8vmin; height:2.3vmin; border:0.35vmin solid var(--ink);
+    border-radius:0.8vmin; overflow:hidden; }
+  .steam-prog .bar > span { display:block; height:100%; background:var(--ink); }
+  .steam-prog .count { font-size:2.3vmin; font-weight:800; font-variant-numeric:tabular-nums;
+    margin-top:0.6vmin; }
+  .steam-prog .count small { font-weight:600; color:var(--mute); }
+  .steam-prog .latest { font-size:2.1vmin; color:var(--mute); margin-top:0.2vmin;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
   footer { text-align:center; font-size:2.3vmin; color:var(--mute);
     border-top:0.35vmin solid var(--soft); padding-top:1.4vmin; }
@@ -116,13 +137,49 @@
         {% endif %}
       </section>
 
-      <section class="card cal">
-        <h2><span class="ttl">{{ ic.calendar() }} 今日行程</span><span class="count">{{ calendar|length }} 項</span></h2>
-        {% for e in calendar %}
-        <div class="cal-item">{{ ic.clock() }}<span class="time">{{ e.time }}</span><span class="title">{{ e.title }}</span></div>
-        {% else %}
-        <div class="ai-empty">今天沒有安排</div>
-        {% endfor %}
+      <section class="card cal steam">
+        <h2><span class="ttl">{{ ic.steam() }} Steam 狀態</span><span class="age">{{ steam.age }}</span></h2>
+        <div class="steam-cols">
+          <div class="steam-left">
+            {% if steam.summary and steam.summary.level is not none %}
+            <div class="steam-stat"><span class="k">等級</span><span class="v">{{ steam.summary.level }}</span></div>
+            {% endif %}
+            {% if steam.summary and steam.summary.total_achievements is not none %}
+            <div class="steam-stat"><span class="k">成就</span><span class="v">{{ "{:,}".format(steam.summary.total_achievements) }}</span></div>
+            {% endif %}
+            {% if steam.summary and steam.summary.badge_count is not none %}
+            <div class="steam-stat"><span class="k">徽章</span><span class="v">{{ steam.summary.badge_count }}</span></div>
+            {% endif %}
+            {% if steam.summary and steam.summary.hours_2weeks_total is not none %}
+            <div class="steam-stat"><span class="k">近2週</span><span class="v">{{ "%.1f"|format(steam.summary.hours_2weeks_total) }} <small>h</small></span></div>
+            {% endif %}
+          </div>
+
+          <div class="steam-right">
+            {% if steam.top %}
+            <div class="steam-seg">
+              <div class="lab">{{ ic.gamepad() }} 最近遊玩最多</div>
+              <div class="game">{{ steam.top.name }}</div>
+              <div class="hrs">兩週 <b>{{ "%.1f"|format(steam.top.hours_2weeks) }}</b> · 總 {{ "%.0f"|format(steam.top.hours_total) }} h</div>
+            </div>
+            <div class="divider"></div>
+            <div class="steam-seg steam-prog">
+              <div class="lab">{{ ic.trophy() }} 成就進度</div>
+              {% if steam.top.ach %}
+              <div class="bar"><span style="width: {{ steam.top.ach.pct }}%"></span></div>
+              <div class="count">{{ steam.top.ach.unlocked }} / {{ steam.top.ach.total }} <small>· {{ steam.top.ach.pct }}%</small></div>
+              {% if steam.top.latest %}
+              <div class="latest">最新:{{ steam.top.latest.name }}{% if steam.top.latest.rarity_pct is not none %} · 全球 {{ steam.top.latest.rarity_pct }}%{% endif %}</div>
+              {% endif %}
+              {% else %}
+              <div class="count"><small>此遊戲無成就</small></div>
+              {% endif %}
+            </div>
+            {% else %}
+            <div class="ai-empty">近期無遊玩紀錄</div>
+            {% endif %}
+          </div>
+        </div>
       </section>
     </div>
 

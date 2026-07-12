@@ -47,6 +47,20 @@ def _reset_label(epoch: float | None) -> str:
         return ""
 
 
+def _window_label(seconds: int | None) -> str:
+    """依窗口長度(秒)標籤,不靠 primary/secondary 位置(API 會換位置)。"""
+    if seconds == 18000:
+        return "5 小時用量"
+    if seconds == 604800:
+        return "7 日內用量"
+    if not seconds:
+        return "用量"
+    hours = seconds / 3600
+    if hours < 48:
+        return f"{round(hours)} 小時用量"
+    return f"{round(hours / 24)} 日內用量"
+
+
 class CodexUsageCollector(Collector):
     source = "codex_usage"
     interval_seconds = 600  # 10 分
@@ -58,15 +72,27 @@ class CodexUsageCollector(Collector):
             r.raise_for_status()
             data = r.json()
 
-        # 結構: rate_limit.primary_window(5時) / secondary_window(7日),含 used_percent、reset_at(epoch)
+        # rate_limit 內含數個窗口;API 會把 5小時/7日 換到 primary/secondary,
+        # 故依各窗口的 limit_window_seconds 標籤,不靠位置。
         rl = data.get("rate_limit") or {}
-        pairs = (("5 小時用量", rl.get("primary_window")), ("7 日內用量", rl.get("secondary_window")))
-        lines = []
-        for label, win in pairs:
-            if win and win.get("used_percent") is not None:
-                lines.append({
-                    "label": label,
-                    "pct": round(win["used_percent"]),
-                    "detail": _reset_label(win.get("reset_at")),
-                })
-        return {"lines": lines}
+        wins = [rl.get("primary_window"), rl.get("secondary_window")]
+        extra = data.get("additional_rate_limits")
+        if isinstance(extra, list):
+            wins += extra
+
+        seen: set = set()
+        rows = []
+        for win in wins:
+            if not win or win.get("used_percent") is None:
+                continue
+            secs = win.get("limit_window_seconds")
+            if secs in seen:
+                continue
+            seen.add(secs)
+            rows.append((secs if secs is not None else 1 << 62, {
+                "label": _window_label(secs),
+                "pct": round(win["used_percent"]),
+                "detail": _reset_label(win.get("reset_at")),
+            }))
+        rows.sort(key=lambda r: r[0])  # 短窗口(5小時)在前,長窗口(7日)在後
+        return {"lines": [row for _, row in rows]}
