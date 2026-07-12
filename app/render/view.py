@@ -57,6 +57,17 @@ def build() -> dict:
         {**_column("Codex", "codex_usage", "待憑證"), "icon": "openai"},
     ]
 
+    routine_c = cache.get("routine")
+    routine = {
+        "mode": "waiting",
+        "title": "作息提醒準備中",
+        "message": "等待下一次更新",
+        "icon": "focus",
+        "cycle_step": None,
+        "remaining_updates": None,
+        **(routine_c["payload"] if routine_c else {}),
+    }
+
     # 今日行程: 尚未接 Google Calendar,先放佔位資料(見 TODO)
     # TODO: 換成 calendar collector 的 cache.get("calendar")
     calendar = [
@@ -72,5 +83,6 @@ def build() -> dict:
         "weather_icon": _weather_icon(weather["desc"]) if weather else "cloudy",
         "air": air,
         "ai_columns": ai_columns,
+        "routine": routine,
         "calendar": calendar,
     }

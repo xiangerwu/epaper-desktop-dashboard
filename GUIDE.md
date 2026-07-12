@@ -1,6 +1,6 @@
 # 完全使用指南 — pi-eink-dashboard
 
-樹莓派桌面電子紙看板。定時抓天氣 / AI 額度,以 live HTML 供 **HyRead Gaze Note Plus**
+樹莓派桌面電子紙看板。定時抓天氣 / AQI / AI 額度並產生本機作息提醒,以 live HTML 供 **HyRead Gaze Note Plus**
 (7.8" e-ink,1404×1872,Android 11)透過 **Fully Kiosk** 全螢幕顯示,Pi/PC 用 **ADB** 控制。
 
 本檔是給「人」看的完整操作手冊。給 AI 協作看的技術說明在 [AGENTS.md](AGENTS.md)。
@@ -23,7 +23,7 @@
 ## 1. 它在做什麼
 
 ```
-資料源(API)  →  收集層(每 10 分)  →  SQLite 快取  →  live HTML(/)  →  裝置 Fully Kiosk 滿版
+資料源(API/本機時間)  →  收集層(依來源節奏)  →  SQLite 快取  →  live HTML(/)  →  裝置 Fully Kiosk 滿版
                                                               ↑
                                           Pi/PC 可用 ADB 喚醒、重載、截圖驗證
 ```
@@ -31,7 +31,7 @@
 - **不產圖**:直接吐 HTML,省磁碟與記憶體(Pi 不需 Chromium)。
 - **三層解耦**:任一 API 失敗,渲染讀「最後一次成功」的舊快取續畫,只標精簡資料年齡,畫面不空白。
 - **並行首抓**:啟動時同時抓各啟用來源,單一逾時不會讓其他來源排隊。
-- **目前顯示的四塊**:日期 / 天氣(CWA)/ Claude 額度 / Codex 額度。
+- **目前顯示**:日期、天氣 + AQI、Claude / Codex 額度,以及右側作息提醒卡。
 
 ---
 
@@ -58,8 +58,10 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 | 來源 | 端點 | 憑證來源 | 需手動設定? |
 |------|------|----------|--------------|
 | 天氣 | CWA `F-C0032-001` 縣市預報 | `CWA_API_KEY` | 要,見下 |
+| AQI | 環境部 `aqx_p_432` | `MOENV_API_KEY` | 要;測站/縣市可設定 |
 | Claude 額度 | `api.anthropic.com/api/oauth/usage` | `~/.claude/.credentials.json`(Claude Code 登入即有) | 不用 |
 | Codex 額度 | `chatgpt.com/backend-api/wham/usage` | `~/.codex/auth.json`(Codex CLI 登入即有) | 不用 |
+| 作息提醒 | 本機時間 + SQLite 上次循環狀態 | 無 | 不用 |
 | OpenRouter(預留) | `openrouter.ai/api/v1/credits` | `OPENROUTER_API_KEY` | 程式保留,目前不啟用 |
 
 **天氣金鑰**:到 <https://opendata.cwa.gov.tw/> 免費申請授權碼(`CWA-xxxx`),
@@ -70,6 +72,33 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 - 若要在「另一台」(如 Pi)跑,設環境變數 `CLAUDE_CODE_OAUTH_TOKEN` / `CODEX_ACCESS_TOKEN`,
   或複製整個 `.credentials.json` / `auth.json` 過去(token 過期需重新登入處保鮮)。
 - 程式**不會**自動 refresh 這些 token(避免輪換時寫壞你正在用的登入)。過期就顯示舊值。
+
+### 更新節奏
+
+- 天氣、AQI:每小時 `:00` 整點 cron 抓取。
+- Claude、Codex、作息提醒:每 600 秒更新。
+- 啟動時所有啟用來源先並行抓一次。
+
+### 作息提醒
+
+| 本地時間 | 提醒/模式 |
+|----------|-----------|
+| 00:00–02:00 | 夜深了，該休息了 |
+| 02:00–07:00 | 凌晨了，請立即休息 |
+| 07:00–09:00 | 早餐提醒 |
+| 09:00–12:00 | 工作循環 |
+| 12:00–13:00 | 午餐提醒 |
+| 13:00–18:00 | 工作循環,重新從第 1 步開始 |
+| 18:00–19:00 | 晚餐提醒 |
+| 19:00–22:00 | 工作循環,重新從第 1 步開始 |
+| 22:00–24:00 | 夜深了，該休息了 |
+
+工作循環每 10 分鐘推進一步:第 1–3 步顯示專注與倒數,第 4 步提醒喝水、伸展 5 分鐘,
+下一次回到第 1 步。自動排程下完整循環約 40 分鐘;跨工作時段或換日會重置。
+點頁首「立即刷新」會呼叫 `/refresh`,當場抓取所有來源,因此也會提前推進作息一步。
+單純重新載入 `/` 或用 ADB 重載頁面不會推進。
+
+作息功能沒有 Apple 整合:不讀 Apple 行事曆、健康資料或 iCloud,也不需要相關帳號與憑證。
 
 ---
 
@@ -141,6 +170,9 @@ Pi 完整步驟(systemd 開機自啟、`apt install adb`、WiFi ADB)見 [DEPLOY.
 | `HTML_AUTO_REFRESH_SECONDS` | `600` | 頁面自刷秒數;`0` = 關(交給 ADB) |
 | `CWA_API_KEY` | — | 中央氣象署授權碼 |
 | `CWA_LOCATION` | `臺中市` | 縣市名,例 `雲林縣` |
+| `MOENV_API_KEY` | — | 環境部資料開放平臺 API key |
+| `AQI_SITE` | `斗六` | 優先選用的 AQI 測站 |
+| `AQI_COUNTY` | `雲林縣` | 找不到指定測站時使用的縣市 |
 | `OPENROUTER_API_KEY` | — | 預留;目前不註冊 OpenRouter 收集器 |
 | `CLAUDE_CODE_OAUTH_TOKEN` | — | 覆寫 Claude token(跨機用) |
 | `CLAUDE_CONFIG_DIR` | `~/.claude` | Claude 憑證目錄 |

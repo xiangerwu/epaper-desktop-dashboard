@@ -18,6 +18,6 @@ finally:
 if image[:8] != b"\x89PNG\r\n\x1a\n":
     raise SystemExit("EVAL_FAIL screenshot is not PNG")
 size = struct.unpack(">II", image[16:24])
-if size != (1404, 1872):
-    raise SystemExit(f"EVAL_FAIL expected 1404x1872, got {size[0]}x{size[1]}")
-print("EVAL_OK device screenshot is 1404x1872 PNG")
+if size != (1872, 1404):
+    raise SystemExit(f"EVAL_FAIL expected 1872x1404, got {size[0]}x{size[1]}")
+print("EVAL_OK device screenshot is 1872x1404 PNG")

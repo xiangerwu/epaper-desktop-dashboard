@@ -26,10 +26,13 @@ async def _adb_refresh() -> None:
 
 def start() -> None:
     for c in COLLECTORS:
-        _sched.add_job(
-            c.run, "interval", seconds=c.interval_seconds,
-            id=c.source, next_run_time=None,  # 首抓由 main 手動觸發
-        )
+        if c.cron_minute is not None:
+            _sched.add_job(c.run, "cron", minute=c.cron_minute, id=c.source)
+        else:
+            # lifespan 已首抓；interval 預設會從現在起算下一次，不可傳 None（會永久暫停）。
+            _sched.add_job(
+                c.run, "interval", seconds=c.interval_seconds, id=c.source
+            )
     if settings.refresh_via_adb:
         _sched.add_job(
             _adb_refresh, "interval",

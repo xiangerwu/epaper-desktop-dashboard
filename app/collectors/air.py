@@ -13,7 +13,8 @@ AQI_URL = "https://data.moenv.gov.tw/api/v2/aqx_p_432"
 
 class AirQualityCollector(Collector):
     source = "air_quality"
-    interval_seconds = 600  # 10 分
+    interval_seconds = 3600
+    cron_minute = 0
 
     async def fetch(self) -> dict:
         if not settings.moenv_api_key:

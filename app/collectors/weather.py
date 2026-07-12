@@ -14,7 +14,8 @@ CWA_FORECAST = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001"
 
 class WeatherCollector(Collector):
     source = "weather"
-    interval_seconds = 600  # 10 分
+    interval_seconds = 3600
+    cron_minute = 0
 
     async def fetch(self) -> dict:
         if not settings.cwa_api_key:

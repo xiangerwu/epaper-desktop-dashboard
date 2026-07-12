@@ -31,8 +31,9 @@
 
   .main { flex:1; display:flex; gap:2.2vmin; min-height:0; }
   .col-left { flex:1; display:flex; flex-direction:column; gap:2.2vmin; }
-  .col-right { flex:1.12; display:flex; gap:2.2vmin; }
-  .col-right > .card { flex:1; }
+  .col-right { flex:1.12; display:flex; flex-direction:column; gap:2.2vmin; min-width:0; }
+  .ai-row { flex:1; display:flex; gap:2.2vmin; min-height:0; }
+  .ai-row > .card { flex:1; }
   .col-left .cal { flex:1; }
 
   .card { border:0.4vmin solid var(--ink); border-radius:2vmin; padding:2.2vmin 2.6vmin; }
@@ -64,6 +65,14 @@
   .ai-item .bar > span { display:block; height:100%; background:var(--ink); }
   .ai-item .sub { font-size:2.1vmin; color:var(--mute); margin-top:0.6vmin; }
   .ai-empty { font-size:2.5vmin; color:var(--mute); }
+
+  /* 作息提醒:右欄下半橫跨兩張 AI 卡 */
+  .routine { flex:0.58; display:flex; align-items:center; gap:2.6vmin; min-height:0; }
+  .routine .routine-icon { flex:none; font-size:8vmin; line-height:0; }
+  .routine .routine-copy { flex:1; min-width:0; }
+  .routine h2 { margin-bottom:0.8vmin; }
+  .routine .routine-message { font-size:2.6vmin; line-height:1.4; }
+  .routine .routine-meta { margin-top:0.8vmin; font-size:2.1vmin; color:var(--mute); }
 
   /* 今日行程 */
   .cal h2 .count { font-size:2.5vmin; font-weight:600; color:var(--mute); }
@@ -118,6 +127,7 @@
     </div>
 
     <div class="col-right">
+      <div class="ai-row">
       {% for col in ai_columns %}
       <section class="card">
         <h2><span class="ttl">{% if col.icon == 'claude' %}{{ ic.claude() }}{% else %}{{ ic.openai() }}{% endif %} {{ col.name }}</span><span class="age">{{ col.age }}</span></h2>
@@ -132,6 +142,18 @@
         {% endfor %}
       </section>
       {% endfor %}
+      </div>
+
+      <section class="card routine">
+        <div class="routine-icon">{{ ic.routine(routine.icon) }}</div>
+        <div class="routine-copy">
+          <h2><span class="ttl">{{ routine.title }}</span></h2>
+          <div class="routine-message">{{ routine.message }}</div>
+          {% if routine.cycle_step %}
+          <div class="routine-meta">第 {{ routine.cycle_step }} 次{% if routine.remaining_updates is not none %} · 剩餘 {{ routine.remaining_updates }} 次{% endif %}</div>
+          {% endif %}
+        </div>
+      </section>
     </div>
   </div>
 

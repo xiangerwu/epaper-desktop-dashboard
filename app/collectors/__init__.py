@@ -5,6 +5,7 @@
 from .air import AirQualityCollector
 from .anthropic_usage import AnthropicUsageCollector
 from .codex_usage import CodexUsageCollector
+from .routine import RoutineCollector
 from .weather import WeatherCollector
 
 COLLECTORS = [
@@ -12,6 +13,7 @@ COLLECTORS = [
     AirQualityCollector(),
     AnthropicUsageCollector(),
     CodexUsageCollector(),
+    RoutineCollector(),
 ]
 
 # OpenRouter 程式與設定保留,等看板需要顯示時再註冊。

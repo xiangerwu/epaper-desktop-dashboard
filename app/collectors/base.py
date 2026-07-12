@@ -14,6 +14,8 @@ class Collector(abc.ABC):
     source: str
     #: 收集節奏(秒)
     interval_seconds: int = 900
+    #: 非 None 時改用每小時指定分鐘的 cron 排程
+    cron_minute: int | None = None
 
     @abc.abstractmethod
     async def fetch(self) -> dict:
