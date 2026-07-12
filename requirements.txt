@@ -5,7 +5,7 @@ jinja2==3.1.6
 httpx==0.28.1
 python-dotenv==1.2.2
 
-# 桌面背景 App(Windows 系統匣 + 預覽視窗);Pi/純服務部署不需要
+# 桌面背景 App(Windows 系統匣 + 預覽視窗);純服務部署不需要
 pywebview==6.2.1
 pystray==0.19.5
 pythonnet==3.1.0

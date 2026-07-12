@@ -275,7 +275,7 @@ class DashboardAgeTests(unittest.TestCase):
         self.assertRegex(page, r"Codex</span>\s*<span class=\"age\">2 小時前</span>")
         self.assertIn("頁面產生於", page)
 
-    def test_routine_card_renders_without_apple_branding(self) -> None:
+    def test_routine_card_renders(self) -> None:
         from app.render import html, view
 
         cached = {
@@ -303,7 +303,6 @@ class DashboardAgeTests(unittest.TestCase):
         self.assertIn('<div class="routine-icon">', page)
         self.assertIn("專注工作中", page)
         self.assertIn("保持節奏", page)
-        self.assertNotIn("Apple", page)
 
     def test_nonwork_routine_hides_zero_cycle(self) -> None:
         from app.render import html, view

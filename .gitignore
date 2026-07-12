@@ -8,7 +8,7 @@ data/
 *.png
 !app/render/assets/*.png
 !docs/*.png
-# Windows 開發用的 adb 二進位,勿入版控(Pi 用系統 adb)
+# Windows 開發用的 adb 二進位,勿入版控(伺服器用系統 adb)
 /adb/
 # 含真機序號與現場狀態，只留本機供程式/維運讀取
 device_info.json

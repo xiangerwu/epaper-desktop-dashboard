@@ -1,7 +1,8 @@
-# 完全使用指南 — pi-eink-dashboard
+# 完全使用指南 — epaper-desktop-dashboard
 
-樹莓派桌面電子紙看板。定時抓天氣 / AQI / AI 額度並產生本機作息提醒,以 live HTML 供 **HyRead Gaze Note Plus**
-(7.8" e-ink,1404×1872,Android 11)透過 **Fully Kiosk** 全螢幕顯示,Pi/PC 用 **ADB** 控制。
+一個後端程式。定時抓天氣 / AQI / AI 額度並產生本機作息提醒,輸出一頁 live HTML 看板。
+電子閱讀器上的 app 開這個網頁即可顯示(實機 **HyRead Gaze Note Plus**,7.8" e-ink,1404×1872,
+Android 11,用 **Fully Kiosk** 全螢幕),主機另可用 **ADB** 控制刷新。
 
 本檔是給「人」看的完整操作手冊。給 AI 協作看的技術說明在 [AGENTS.md](AGENTS.md)。
 
@@ -23,12 +24,12 @@
 ## 1. 它在做什麼
 
 ```
-資料源(API/本機時間)  →  收集層(依來源節奏)  →  SQLite 快取  →  live HTML(/)  →  裝置 Fully Kiosk 滿版
+資料源(API/本機時間)  →  收集層(依來源節奏)  →  SQLite 快取  →  live HTML(/)  →  電子閱讀器 Fully Kiosk 滿版
                                                               ↑
-                                          Pi/PC 可用 ADB 喚醒、重載、截圖驗證
+                                          後端可用 ADB 喚醒、重載、截圖驗證
 ```
 
-- **不產圖**:直接吐 HTML,省磁碟與記憶體(Pi 不需 Chromium)。
+- **輕量**:直接吐 HTML,省磁碟與記憶體,無需 Chromium。
 - **三層解耦**:任一 API 失敗,渲染讀「最後一次成功」的舊快取續畫,只標精簡資料年齡,畫面不空白。
 - **並行首抓**:啟動時同時抓各啟用來源,單一逾時不會讓其他來源排隊。
 - **目前顯示**:日期、天氣 + AQI、Claude / Codex 額度,以及右側作息提醒卡。
@@ -69,7 +70,7 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 
 **Claude / Codex**:只要你在這台機器上用 Claude Code / Codex CLI 登入過就自動讀得到,
 無需填 key。token 會過期,但你平常在用時系統會自動保鮮。
-- 若要在「另一台」(如 Pi)跑,設環境變數 `CLAUDE_CODE_OAUTH_TOKEN` / `CODEX_ACCESS_TOKEN`,
+- 若要在「另一台」主機跑,設環境變數 `CLAUDE_CODE_OAUTH_TOKEN` / `CODEX_ACCESS_TOKEN`,
   或複製整個 `.credentials.json` / `auth.json` 過去(token 過期需重新登入處保鮮)。
 - 程式**不會**自動 refresh 這些 token(避免輪換時寫壞你正在用的登入)。過期就顯示舊值。
 
@@ -98,7 +99,7 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 點頁首「立即刷新」會呼叫 `/refresh`,當場抓取所有來源,因此也會提前推進作息一步。
 單純重新載入 `/` 或用 ADB 重載頁面不會推進。
 
-作息功能沒有 Apple 整合:不讀 Apple 行事曆、健康資料或 iCloud,也不需要相關帳號與憑證。
+作息功能只讀本機時間與 SQLite 上次循環狀態,不需要任何外部帳號與憑證。
 
 ---
 
@@ -109,7 +110,7 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 **首次設定(已完成範例)**
 1. 裝置開 Play 商店裝 **Fully Kiosk Browser**(或 `adb install <apk>`)。
 2. Quick Start Settings:
-   - **Start URL** = 看板網址(USB 測試 `http://localhost:8000/`;WiFi/Pi 用 `http://<主機IP>:8000/`)。
+   - **Start URL** = 看板網址(USB 測試 `http://localhost:8000/`;WiFi 用 `http://<主機IP>:8000/`)。
    - **Fullscreen Mode** ON、**Show Action Bar** OFF、**Show Address Bar** OFF。
 3. 按 **START USING FULLY**。
 4. 自動刷新由**頁面自己**做(HTML 內建 `meta refresh`,預設 600 秒),不必設 Fully 的 reload。
@@ -123,7 +124,7 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 
 ## 5. ADB 控制指令
 
-開發機用專案內附 `./adb/adb.exe`(`.env` 的 `ADB_BINARY` 已指它);Pi 用系統 `adb`。
+開發機用專案內附 `./adb/adb.exe`(`.env` 的 `ADB_BINARY` 已指它);Linux 主機用系統 `adb`。
 
 ```bash
 python -m app.device.adb devices     # 列出裝置
@@ -147,16 +148,16 @@ python -m app.device.adb screencap out.png   # 抓裝置畫面回來驗證
 
 ## 6. 三種部署形態
 
-| 形態 | 伺服器在哪 | 裝置連線 | 適合 |
-|------|-----------|----------|------|
+| 形態 | 伺服器在哪 | 電子閱讀器連線 | 適合 |
+|------|-----------|----------------|------|
 | **USB 開發** | 這台 PC | USB + `adb reverse` | 現在的開發/示範 |
 | **PC 常駐(WiFi)** | 這台 PC | WiFi 到 PC 區網 IP | 想先脫離 USB 試 |
-| **Pi 5 常駐(目標)** | 樹莓派 | WiFi 到 Pi 區網 IP | 桌面長期無人值守 |
+| **常駐主機(WiFi)** | 任一常駐 Linux/PC 主機 | WiFi 到主機區網 IP | 桌面長期無人值守 |
 
 切換只改兩處:**伺服器主機的區網 IP**,填進 (a) Fully 的 Start URL、(b) `.env` 的 `DASHBOARD_URL`。
-Pi 完整步驟(systemd 開機自啟、`apt install adb`、WiFi ADB)見 [DEPLOY.md](DEPLOY.md)。
+常駐主機完整步驟(systemd 開機自啟、`apt install adb`、WiFi ADB)見 [DEPLOY.md](DEPLOY.md)。
 
-查主機區網 IP:Windows `ipconfig`;Pi/Linux `hostname -I`。桌面背景 App(下節)會自動
+查主機區網 IP:Windows `ipconfig`;Linux `hostname -I`。桌面背景 App(下節)會自動
 偵測並顯示區網 IP,免手動查。
 
 ---
@@ -177,7 +178,7 @@ Pi 完整步驟(systemd 開機自啟、`apt install adb`、WiFi ADB)見 [DEPLOY.
   左鍵(或雙擊)圖示 = 顯示預覽。
 - **關閉視窗只是隱藏**,服務續跑;要真的結束請用選單「結束」(會收掉服務、釋放埠)。
 - 埠沿用 `_choose_port()`:主埠被占就自動換備用埠,視窗與網址會跟著顯示實際埠。
-- 僅 Windows;Pi 端仍用 `python -m app.main` / systemd(見 [DEPLOY.md](DEPLOY.md)),不受影響。
+- 僅 Windows;常駐主機端仍用 `python -m app.main` / systemd(見 [DEPLOY.md](DEPLOY.md)),不受影響。
 
 ---
 
@@ -232,7 +233,7 @@ Pi 完整步驟(systemd 開機自啟、`apt install adb`、WiFi ADB)見 [DEPLOY.
 | 症狀 | 處理 |
 |------|------|
 | 裝置打不開頁面 | `DASHBOARD_URL` 用**區網 IP**不要 localhost(除非 USB + `adb reverse`);主機防火牆放行該埠 |
-| CWA 憑證錯 `Missing Subject Key Identifier` | 已在 `app/net.py` 放寬 Py3.14 X509 strict;Pi 上仍失敗就 `pip install -U certifi` |
+| CWA 憑證錯 `Missing Subject Key Identifier` | 已在 `app/net.py` 放寬 Py3.14 X509 strict;主機上仍失敗就 `pip install -U certifi` |
 | Claude/Codex 格空白或「待憑證」 | 在該機用 Claude Code / Codex CLI 登入;跨機則設對應 token 環境變數 |
 | `adb devices` 看不到裝置 | 裝置開發者選項開 USB 偵錯並在裝置上「允許」;WiFi 先 `adb tcpip 5555` 再 `adb connect ip:5555` |
 | 啟動說埠被占用 | 交給備用埠自動處理;或改 `PORT`,記得同步改裝置 URL |

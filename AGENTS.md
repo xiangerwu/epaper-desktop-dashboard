@@ -5,9 +5,10 @@
 
 ## 這是什麼
 
-樹莓派桌面電子紙看板。FastAPI 定時抓資料 → 存 SQLite 快取 → 用 Jinja2 吐 **live HTML** →
-**HyRead Gaze Note Plus**(1404×1872 e-ink,Android 11)的 **Fully Kiosk** 全螢幕顯示。
-Pi/PC 用 **ADB** 控制裝置(喚醒 / 重載 / 截圖)。**刻意不產圖**(無 Playwright/Chromium)。
+一個後端程式。FastAPI 定時抓資料 → 存 SQLite 快取 → 用 Jinja2 吐 **live HTML**,
+電子閱讀器上的 app 開網頁即可顯示(實機 **HyRead Gaze Note Plus**,1404×1872 e-ink,Android 11,
+用 **Fully Kiosk** 全螢幕)。主機用 **ADB** 控制電子閱讀器(喚醒 / 重載 / 截圖)。
+顯示走網頁,無 Playwright/Chromium。
 
 ## 架構與資料流
 
@@ -73,8 +74,7 @@ app/main.py (FastAPI):  GET /  即時渲染   ·   GET /health   ·   app/device
 - **不要自動 refresh Claude/Codex 的 OAuth token**。refresh 會輪換 token,寫回失誤會弄壞使用者
   正在用的 Claude Code / Codex CLI 登入。過期就顯示舊值,由使用者在該機重新登入。
 - **不要 commit** 二進位(`./adb/`)、`data/`、`.env`、model 權重。
-- **不要重新引入 Playwright/Pillow**(已刻意移除以省 Pi 資源);顯示走網頁,不產圖。
-- **不要加入 Apple 整合**。作息只依本機時間與 SQLite 循環狀態,不讀 Apple 行事曆/健康/iCloud。
+- **不要重新引入 Playwright/Pillow**(已刻意移除以維持輕量);顯示走網頁。
 - **不要批次刪檔**(見使用者全域規則);一次刪一個明確路徑。
 
 ## 常用指令
@@ -99,5 +99,5 @@ HyRead Gaze Note Plus:`model K08P`、`rk3566_eink`、Android 11 / SDK 30、
 
 已完成:天氣(CWA)、AQI(MOENV)、Claude 額度、Codex 額度、本機作息提醒、live HTML、
 Fully Kiosk 滿版(實機驗證)、ADB 控制、備用埠、分來源排程。
-未完成:脫離 USB(改區網 IP / Pi 部署)、Fully 鎖定與開機自啟、e-ink full-refresh 廣播、
-Pi 端 token 同步、OpenRouter(待金鑰)、預留的 Notion / 一般 DB connector。
+未完成:脫離 USB(改用主機區網 IP)、Fully 鎖定與開機自啟、e-ink full-refresh 廣播、
+跨機 token 同步、OpenRouter(待金鑰)、預留的 Notion / 一般 DB connector。
