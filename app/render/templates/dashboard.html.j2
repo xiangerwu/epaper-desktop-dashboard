@@ -70,7 +70,7 @@
   <div class="ai-row">
     {% for col in ai_columns %}
     <section class="card">
-      <h2>{{ col.name }}</h2>
+      <h2>{{ col.name }}<span class="age">{{ col.age }}</span></h2>
       {% for q in col.lines %}
       <div class="ai-item">
         <div class="top"><span class="lab">{{ q.label }}</span><span class="pct">{{ q.pct }}%</span></div>
@@ -84,7 +84,7 @@
     {% endfor %}
   </div>
 
-  <footer>更新於 {{ generated_at }}</footer>
+  <footer>頁面產生於 {{ generated_at }}</footer>
 </div>
 </body>
 </html>

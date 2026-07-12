@@ -14,7 +14,8 @@
                                               Pi 用 ADB 定時叫裝置刷新
 ```
 
-三層獨立:任一資料源失敗,渲染讀舊快取續畫,只標「Xm 前更新」,畫面不空白。
+三層獨立:任一資料源失敗,渲染讀舊快取續畫,只標精簡資料年齡,畫面不空白。
+啟動時各來源並行抓取,不讓單一逾時串行拖慢整體啟動。
 
 - `app/collectors/` 各來源收集器(各依自己節奏抓,寫入快取)
 - `app/render/` view-model(`view.py`)→ Jinja2 模板 → HTML 字串(`html.py`)
@@ -35,7 +36,15 @@ cp .env.example .env        # 填 CWA_API_KEY、CWA_LOCATION
 python -m app.main
 ```
 
-開 http://localhost:8000/ 看看板,`/health` 看各來源快取狀態。
+開 http://localhost:8000/ 看看板。`/health` 保留頂層 `ok`,各啟用來源另回報
+`available`、`age_seconds`、`stale`;超過兩倍收集週期才算 stale。
+
+## 驗證
+
+```powershell
+.venv/Scripts/python -m unittest discover -s tests -v
+.venv/Scripts/python -m evals.device_screen  # 需連上真機;驗證 PNG 與 1404×1872
+```
 
 ## 部署到 Pi 5 + 裝置設定
 
@@ -48,7 +57,7 @@ python -m app.main
 - [x] Phase 2:天氣接真來源(CWA F-C0032-001),實測 200 + 真資料上頁
 - [x] 架構轉為 live HTML(移除產圖 / Playwright / Pillow)
 - [x] ADB 控制層(connect/open/refresh/wake/screencap);**已在實機 K08P 驗證**
-- [x] AI 額度兩格(左 Claude / 右 Codex),皆實測真資料;參考 openusage。OpenRouter 選用(需金鑰)
+- [x] AI 額度兩格(左 Claude / 右 Codex),皆實測真資料;參考 openusage。OpenRouter 程式保留但不啟用
 - [x] UI 縮小、移除今日行程、全站 10 分鐘更新
 - [x] 裝置全螢幕:Fully Kiosk 已裝並設定,實機驗證滿版(無系統列/工具列/網址列)
 - [ ] 脫離 USB:改用 Pi 或 PC 區網 IP,裝置走 WiFi(目前 localhost + adb reverse 是 USB 綁定)

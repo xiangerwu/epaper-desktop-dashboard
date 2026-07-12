@@ -29,7 +29,8 @@
 ```
 
 - **不產圖**:直接吐 HTML,省磁碟與記憶體(Pi 不需 Chromium)。
-- **三層解耦**:任一 API 失敗,渲染讀「最後一次成功」的舊快取續畫,只標「Xm 前更新」,畫面不空白。
+- **三層解耦**:任一 API 失敗,渲染讀「最後一次成功」的舊快取續畫,只標精簡資料年齡,畫面不空白。
+- **並行首抓**:啟動時同時抓各啟用來源,單一逾時不會讓其他來源排隊。
 - **目前顯示的四塊**:日期 / 天氣(CWA)/ Claude 額度 / Codex 額度。
 
 ---
@@ -59,7 +60,7 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 | 天氣 | CWA `F-C0032-001` 縣市預報 | `CWA_API_KEY` | 要,見下 |
 | Claude 額度 | `api.anthropic.com/api/oauth/usage` | `~/.claude/.credentials.json`(Claude Code 登入即有) | 不用 |
 | Codex 額度 | `chatgpt.com/backend-api/wham/usage` | `~/.codex/auth.json`(Codex CLI 登入即有) | 不用 |
-| OpenRouter(選用) | `openrouter.ai/api/v1/credits` | `OPENROUTER_API_KEY` | 填了才啟用 |
+| OpenRouter(預留) | `openrouter.ai/api/v1/credits` | `OPENROUTER_API_KEY` | 程式保留,目前不啟用 |
 
 **天氣金鑰**:到 <https://opendata.cwa.gov.tw/> 免費申請授權碼(`CWA-xxxx`),
 填進 `.env` 的 `CWA_API_KEY`。地區用縣市名 `CWA_LOCATION`(例 `雲林縣`;此資料集只到縣市級)。
@@ -140,7 +141,7 @@ Pi 完整步驟(systemd 開機自啟、`apt install adb`、WiFi ADB)見 [DEPLOY.
 | `HTML_AUTO_REFRESH_SECONDS` | `600` | 頁面自刷秒數;`0` = 關(交給 ADB) |
 | `CWA_API_KEY` | — | 中央氣象署授權碼 |
 | `CWA_LOCATION` | `臺中市` | 縣市名,例 `雲林縣` |
-| `OPENROUTER_API_KEY` | — | 選用;填了才顯示 OpenRouter 格 |
+| `OPENROUTER_API_KEY` | — | 預留;目前不註冊 OpenRouter 收集器 |
 | `CLAUDE_CODE_OAUTH_TOKEN` | — | 覆寫 Claude token(跨機用) |
 | `CLAUDE_CONFIG_DIR` | `~/.claude` | Claude 憑證目錄 |
 | `CODEX_ACCESS_TOKEN` | — | 覆寫 Codex token(跨機用) |
@@ -164,6 +165,8 @@ Pi 完整步驟(systemd 開機自啟、`apt install adb`、WiFi ADB)見 [DEPLOY.
 
 **失效設計(各層獨立降級)**
 - **某個 API 掛掉**:該來源 `fetch` 例外被吞,保留上次成功的快取,畫面照畫舊值 + 時間戳。
+- **健康狀態**:`/health` 頂層 `ok` 表示服務存活;各來源回 `available`、`age_seconds`、`stale`。
+  無資料或資料年齡超過兩倍收集週期才是 stale,剛好兩倍仍視為新鮮。
 - **憑證過期**(Claude/Codex):同上,顯示舊值不清空;重新登入該機後自動恢復。
 - **伺服器重啟**:啟動時先同步抓一輪再開埠,首個請求就有資料。
 - **網路 / 裝置離線**:Fully 停在最後一次載入的畫面;恢復後下次 `meta refresh` 自動更新。

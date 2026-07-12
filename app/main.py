@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -22,8 +23,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    for c in COLLECTORS:  # 啟動先抓一輪,首個請求就有資料
-        await c.run()
+    # 啟動先並行抓一輪,全部完成後才接受首個請求
+    await asyncio.gather(*(c.run() for c in COLLECTORS))
     scheduler.start()
     yield
     scheduler.shutdown()
@@ -39,7 +40,15 @@ async def dashboard():
 
 @app.get("/health")
 async def health():
-    sources = {c.source: cache.get(c.source) is not None for c in COLLECTORS}
+    sources = {}
+    for c in COLLECTORS:
+        cached = cache.get(c.source)
+        age = cached["age_seconds"] if cached else None
+        sources[c.source] = {
+            "available": cached is not None,
+            "age_seconds": age,
+            "stale": age is None or age > 2 * c.interval_seconds,
+        }
     return JSONResponse({"ok": True, "sources": sources})
 
 

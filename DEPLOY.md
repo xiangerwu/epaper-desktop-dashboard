@@ -41,7 +41,8 @@ ADB 相關先留預設(`REFRESH_VIA_ADB=false`),等 C 段驗證通再開。
 ```bash
 .venv/bin/python -m app.main
 # 另一台機器瀏覽器開 http://<PiのIP>:8000/ 應看到看板
-curl -s http://localhost:8000/health   # {"ok":true,"sources":{"weather":true}}
+curl -s http://localhost:8000/health
+# {"ok":true,"sources":{"weather":{"available":true,"age_seconds":12,"stale":false},...}}
 ```
 
 ### 5. 開機自啟(systemd)

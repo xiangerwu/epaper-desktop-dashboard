@@ -54,30 +54,36 @@ def _ensure_adb() -> str:
     return path
 
 
-def _base() -> list[str]:
+def _base(*, target: bool = True) -> list[str]:
     cmd = [_ensure_adb()]
-    if TARGET:
+    if target and TARGET:
         cmd += ["-s", TARGET]
     return cmd
 
 
-def _run(args: list[str], *, binary: bool = False) -> bytes | str:
-    proc = subprocess.run(_base() + args, capture_output=True, timeout=30)
+def _run(
+    args: list[str], *, binary: bool = False, target: bool = True
+) -> bytes | str:
+    try:
+        proc = subprocess.run(
+            _base(target=target) + args, capture_output=True, timeout=30
+        )
+    except subprocess.TimeoutExpired as e:
+        raise AdbError(f"adb {' '.join(args)} 逾時 (30 秒)") from e
+    except OSError as e:
+        raise AdbError(f"adb {' '.join(args)} 無法執行: {e}") from e
     if proc.returncode != 0:
+        detail = proc.stderr.decode(errors="replace").strip()
         raise AdbError(
-            f"adb {' '.join(args)} 失敗 (rc={proc.returncode}): "
-            f"{proc.stderr.decode(errors='replace').strip()}"
+            f"adb {' '.join(args)} 失敗 (rc={proc.returncode})"
+            f"{f': {detail}' if detail else ''}"
         )
     return proc.stdout if binary else proc.stdout.decode(errors="replace")
 
 
 def connect() -> str:
-    _ensure_adb()
     if ":" in TARGET:  # WiFi
-        out = subprocess.run(
-            [_ensure_adb(), "connect", TARGET], capture_output=True, timeout=30
-        )
-        msg = out.stdout.decode(errors="replace").strip()
+        msg = str(_run(["connect", TARGET], target=False)).strip()
         if "connected" not in msg and "already" not in msg:
             raise AdbError(f"adb connect {TARGET} 失敗: {msg}")
         return msg
@@ -85,10 +91,7 @@ def connect() -> str:
 
 
 def devices() -> str:
-    _ensure_adb()
-    return subprocess.run(
-        [_ensure_adb(), "devices", "-l"], capture_output=True, timeout=30
-    ).stdout.decode(errors="replace").strip()
+    return str(_run(["devices", "-l"], target=False)).strip()
 
 
 def wake() -> None:

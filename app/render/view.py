@@ -29,13 +29,18 @@ def build() -> dict:
     weather_age = _age_label(weather_c["age_seconds"] if weather_c else None)
 
     # AI 額度: 兩格,左 Claude 右 Codex。各來源存 {"lines":[{label,pct,detail}...]}
-    def _lines(src: str) -> list[dict]:
+    def _column(name: str, src: str, empty: str) -> dict:
         c = cache.get(src)
-        return c["payload"].get("lines", []) if c else []
+        return {
+            "name": name,
+            "lines": c["payload"].get("lines", []) if c else [],
+            "age": _age_label(c["age_seconds"] if c else None),
+            "empty": empty,
+        }
 
     ai_columns = [
-        {"name": "Claude", "lines": _lines("anthropic_usage"), "empty": "無資料"},
-        {"name": "Codex", "lines": _lines("codex_usage"), "empty": "待憑證"},
+        _column("Claude", "anthropic_usage", "無資料"),
+        _column("Codex", "codex_usage", "待憑證"),
     ]
 
     return {

@@ -2,7 +2,6 @@
 
 失敗不拖垮其他源:base.Collector.run 會吞例外並保留舊快取。
 """
-from ..config import settings
 from .anthropic_usage import AnthropicUsageCollector
 from .codex_usage import CodexUsageCollector
 from .weather import WeatherCollector
@@ -13,8 +12,4 @@ COLLECTORS = [
     CodexUsageCollector(),
 ]
 
-# OpenRouter 只在有金鑰時註冊
-if settings.openrouter_api_key:
-    from .openrouter import OpenRouterCollector
-
-    COLLECTORS.append(OpenRouterCollector())
+# OpenRouter 程式與設定保留,等看板需要顯示時再註冊。
