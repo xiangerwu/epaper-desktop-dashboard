@@ -1,90 +1,146 @@
 # epaper-desktop-dashboard
 
-一個後端程式(FastAPI):定時抓天氣 / AQI / AI 額度(Claude·Codex)/ Steam 狀態 / 時段語錄,
-存進 SQLite 快取,輸出一頁 **live HTML** 看板;左下另有前端番茄鐘與依時段／專注狀態切換的桌寵對話。電子閱讀器上的 app 開這個網頁即可顯示,
-後端另可透過 **ADB** 定時叫電子閱讀器刷新(喚醒 + 重載 + e-ink full refresh)。
+把電腦上的即時資料整理成一頁高對比電子紙看板。FastAPI 定時收集資料、SQLite 保留最後一次成功值、Jinja2 即時輸出 HTML；電子閱讀器只要用 kiosk 瀏覽器開啟網頁。
 
-顯示端實測於 **HyRead Gaze Note Plus**(7.8" e-ink,1404×1872,Android 11),用 **Fully Kiosk** 滿版開網頁。
-另附一個 Windows 系統匣桌面 App（`run_app.bat`):背景常駐服務 + 可叫出的預覽視窗,直接顯示區網網址與 IP。
-
-## 預覽
-
-實機 e-ink 畫面(`python -m app.device.adb screencap`,2026-07-13 擷取):
+實機環境：**HyRead Gaze Note Plus**、1404×1872、Android 11、Fully Kiosk。
 
 ![看板預覽](docs/preview.png)
 
-## 架構
+## 功能
 
+- 天氣與空氣品質：中央氣象署 CWA、環境部 MOENV。
+- AI 額度：Claude Code、Codex CLI 的本機登入資訊。
+- Steam 狀態：等級、成就、徽章、近期遊玩時數。
+- 作息區：時段提示、50 分鐘番茄鐘、依狀態切換的桌寵與對話氣泡。
+- 斷線降級：單一來源失敗時保留舊快取，不清空整個畫面。
+- 裝置控制：ADB 喚醒、開啟看板、刷新與真機截圖。
+- Windows 桌面模式：系統匣常駐服務與預覽視窗。
+
+## 快速開始（Windows PowerShell）
+
+需要 Python 3.11 以上。
+
+```powershell
+cd D:\Project\for_pi
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
+.\.venv\Scripts\python.exe -m app.main
 ```
-資料源(API/本機時間) → 收集層(定時) → SQLite 快取 → live HTML(/) → 電子閱讀器開網頁顯示
-                                                          ↑
-                                          後端用 ADB 定時叫電子閱讀器刷新
+
+開啟：
+
+- 看板：<http://localhost:8000/>
+- 健康狀態：<http://localhost:8000/health>
+
+主埠被占用時會改用 `.env` 的 `FALLBACK_PORTS`。裝置網址與 ADB reverse 必須跟著改成實際埠號。
+
+### 最少設定
+
+編輯 `.env`。沒有金鑰的來源可以暫時留空，服務仍會啟動，對應卡片顯示無資料或最後一次成功值。
+
+| 功能 | 設定 |
+|------|------|
+| 天氣 | `CWA_API_KEY`、`CWA_LOCATION` |
+| AQI | `MOENV_API_KEY`、`AQI_SITE`、`AQI_COUNTY` |
+| Steam | `STEAM_API_KEY`、`STEAM_ID` |
+| Claude | 自動讀取 `~/.claude/.credentials.json` |
+| Codex | 自動讀取 `~/.codex/auth.json` |
+
+完整設定與註解見 [.env.example](.env.example)。
+
+### Windows 系統匣模式
+
+雙擊 `run_app.bat`，或執行：
+
+```powershell
+.\.venv\Scripts\python.exe -m app.desktop
 ```
 
-三層獨立:任一資料源失敗,渲染讀舊快取續畫,只標精簡資料年齡,畫面不空白。
-啟動時各來源並行抓取,不讓單一逾時串行拖慢整體啟動。
+## 顯示到電子閱讀器
 
-| 來源 | 更新節奏 |
+### USB：最短路徑
+
+1. 開啟電子閱讀器的 USB 偵錯並接上電腦。
+2. Fully Kiosk 的 Start URL 設成 `http://localhost:8000/`。
+3. `.env` 設定：
+
+```ini
+DASHBOARD_URL=http://localhost:8000/
+DEVICE_BROWSER_COMPONENT=de.ozerov.fully/.MainActivity
+```
+
+4. 建立反向連接並刷新：
+
+```powershell
+.\adb\adb.exe devices -l
+.\adb\adb.exe reverse tcp:8000 tcp:8000
+.\.venv\Scripts\python.exe -m app.device.adb refresh
+.\.venv\Scripts\python.exe -m app.device.adb screencap data\device_screen.png
+```
+
+最後一行取得的 **1872×1404 橫向真機截圖**才是版面驗證依據；不要只看 PC 瀏覽器。
+
+### Wi-Fi 與開機自啟
+
+要脫離 USB，將 Fully Start URL 與 `DASHBOARD_URL` 改成主機區網 IP。systemd、Wi-Fi ADB、Fully Kiosk 設定見 [DEPLOY.md](DEPLOY.md)。
+
+## 常用操作
+
+| 目的 | 指令 |
+|------|------|
+| 啟動服務 | `.\.venv\Scripts\python.exe -m app.main` |
+| 啟動桌面模式 | `.\.venv\Scripts\python.exe -m app.desktop` |
+| 確認 ADB | `.\.venv\Scripts\python.exe -m app.device.adb devices` |
+| 刷新裝置 | `.\.venv\Scripts\python.exe -m app.device.adb refresh` |
+| 真機截圖 | `.\.venv\Scripts\python.exe -m app.device.adb screencap data\device_screen.png` |
+| Gate tests | `.\.venv\Scripts\python.exe -m unittest tests.test_gate` |
+| Dashboard eval | `.\.venv\Scripts\python.exe -m evals.pet_dashboard` |
+| 真機 eval | `.\.venv\Scripts\python.exe -m evals.device_screen` |
+
+## 資料更新節奏
+
+| 來源 | 更新時間 |
 |------|----------|
 | 天氣、AQI | 每小時整點 |
-| Steam 狀態 | 每半小時(:00、:30) |
-| Claude、Codex、時段語錄 | 每 10 分鐘 |
+| Steam | 每小時 `:00`、`:30` |
+| Claude、Codex、作息提示 | 每 10 分鐘 |
 
-### 模組
+服務啟動時會並行收集一次。`GET /` 只渲染現有快取；`/refresh` 才會重新執行 collectors。
+
+## 架構
+
+```text
+app/collectors/* ──fetch──> SQLite cache ──> view-model ──> Jinja2 live HTML
+                                                              │
+FastAPI  /  /health  /refresh              ADB <──────────────┘
+```
 
 | 路徑 | 職責 |
 |------|------|
-| `app/collectors/` | 各來源收集器(依自己節奏抓,寫入快取) |
-| `app/render/` | view-model(`view.py`)→ Jinja2 模板 → HTML 字串(`html.py`) |
-| `app/net.py` | 共用 httpx(放寬 Py3.14 過嚴的 X509 strict,CWA 憑證才過) |
-| `app/scheduler.py` | APScheduler:整點 cron 與 10 分鐘 interval job(＋選用 ADB 刷新 job) |
-| `app/device/adb.py` | ADB 控制:connect / open / refresh / wake / screencap |
-| `app/main.py` | FastAPI:`/`(看板)、`/health` |
+| `app/collectors/` | 各資料來源與更新週期 |
+| `app/cache.py` | SQLite 最後成功值 |
+| `app/render/` | view-model、模板與 HTML |
+| `app/net.py` | 共用 httpx 與 CWA 憑證相容設定 |
+| `app/scheduler.py` | cron、interval 與選用 ADB 刷新工作 |
+| `app/device/adb.py` | 裝置連線、喚醒、重載與截圖 |
+| `app/main.py` | FastAPI app、啟動收集與備用埠 |
 
-## 開發(先在 PC 上測)
+## 操作注意
 
-```bash
-python -m venv .venv
-# Windows PowerShell: .venv\Scripts\Activate.ps1
-# bash:               source .venv/bin/activate
-pip install -r requirements.txt
+- 不會自動刷新 Claude / Codex OAuth token，避免輪換失敗破壞 CLI 登入。
+- `.env`、`data/`、`adb/` 不進版控。
+- 電子閱讀器若使用備用埠，Fully URL、`DASHBOARD_URL`、ADB reverse 三處都要一致。
+- e-ink 版面使用純黑白、高對比、粗框與相對尺寸；修改後應重新抓真機截圖。
 
-cp .env.example .env        # 填 CWA_API_KEY、CWA_LOCATION
-python -m app.main
-```
+## 延伸文件
 
-開 <http://localhost:8000/> 看看板。`/health` 保留頂層 `ok`,各啟用來源另回報
-`available`、`age_seconds`、`stale`;超過兩倍收集週期才算 stale。
+- [GUIDE.md](GUIDE.md)：完整操作手冊與資料來源說明。
+- [DEPLOY.md](DEPLOY.md)：常駐主機、systemd、Wi-Fi ADB、Fully Kiosk。
+- [AGENTS.md](AGENTS.md)：架構慣例、擴充方式與已知地雷。
 
-Windows 要背景常駐 + 系統匣預覽視窗:雙擊 `run_app.bat`(或 `python -m app.desktop`),
-見 [GUIDE.md](GUIDE.md) §6.5。
+## 現況
 
-## 驗證
+已完成 live HTML、CWA、AQI、Claude、Codex、Steam、番茄鐘、桌寵、Fully Kiosk 與 ADB 真機流程。
 
-```powershell
-.venv/Scripts/python -m unittest discover -s tests -v
-.venv/Scripts/python -m evals.device_screen  # 需連上真機;驗證 PNG 與 1404×1872
-```
-
-## 部署與電子閱讀器設定
-
-見 [DEPLOY.md](DEPLOY.md):常駐主機開機自啟(systemd)、ADB 安裝與裝置配對、
-kiosk 瀏覽器,以及「後端定時用 ADB 叫電子閱讀器刷新」的開啟方式。
-
-## 建置進度
-
-- [x] 骨架 + 假資料,打通「後端出頁 → 電子閱讀器顯示」
-- [x] 天氣接真來源(CWA F-C0032-001),實測 200 + 真資料上頁
-- [x] 架構轉為 live HTML
-- [x] ADB 控制層(connect/open/refresh/wake/screencap);**已在實機 K08P 驗證**
-- [x] Claude / Codex 額度皆實測真資料;參考 openusage。OpenRouter 程式保留但不啟用
-- [x] Steam 狀態卡:帳號摘要(等級/成就/徽章/近兩週時數)+ 最近玩最多遊戲的成就進度
-- [x] Windows 系統匣桌面 App(`run_app.bat`):背景服務 + 預覽視窗 + 區網 IP
-- [x] 右側作息卡:時段語錄(早幽默 / 午打氣 / 晚療癒,空檔隨機提示)+ 前端番茄鐘(50 分 / 5 段,開始·停止)
-- [x] 桌寵:依時段／番茄鐘切換姿態,每分鐘慢速換幀,並顯示各狀態隨機對話
-- [x] ADB WiFi 斷線自動重連(offline 先 disconnect 再 connect)
-- [x] 天氣 / AQI 每小時整點更新;Claude / Codex / 作息每 10 分鐘更新
-- [x] 電子閱讀器全螢幕:Fully Kiosk 已裝並設定,實機驗證滿版(無系統列/工具列/網址列)
-- [ ] 脫離 USB:改用主機區網 IP,電子閱讀器走 WiFi(目前 localhost + adb reverse 是 USB 綁定)
-- [ ] Fully 鎖定/開機自啟 + e-ink full refresh 廣播 + 跨機憑證方案
-- [ ] 預留:Notion / 一般 DB connector(目前不啟用)
+待辦：脫離 USB、Fully 鎖定與開機自啟、e-ink full-refresh 廣播、跨機憑證同步，以及預留的 Notion / 一般 DB connector。

@@ -10,6 +10,15 @@ required = (
     "var PET_DIALOGUES",
     'setPet(seg < 4 ? "focus" : "break")',
     "setInterval(advancePet, 60000)",
+    'class="pomo-message" id="pomoMessage"',
+    '<span id="pomoRemain"></span> · <span id="pomoStage"></span>',
+    "justify-content:flex-start",
+    "messageEl.textContent = MAIN[seg]",
+    'stageEl.textContent = "第 "',
+    "font-size:3.5vmin",
+    "font-size:calc(2.8vmin + 2pt)",
+    "border:0.35vmin solid var(--ink)",
+    ".pet-dialogue::before",
 )
 missing = [value for value in required if value not in page]
 if missing:

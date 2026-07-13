@@ -197,6 +197,12 @@ class SchedulerTests(unittest.TestCase):
 
 
 class RoutineTests(unittest.TestCase):
+    def test_longest_prompt_matches_dashboard_font_baseline(self) -> None:
+        from app.collectors.routine import FILLERS, QUIPS
+
+        prompts = [item[2] for item in QUIPS] + [item[1] for item in FILLERS]
+        self.assertEqual(max(map(len, prompts)), 21)
+
     def test_quip_shows_anchor_soon_after_time(self) -> None:
         from app.collectors.routine import build_payload
 
@@ -266,7 +272,7 @@ class DashboardAgeTests(unittest.TestCase):
         self.assertEqual([column["age"] for column in model["ai_columns"]], ["1 分前", "2 小時前"])
         self.assertRegex(page, r"Claude</span>\s*<span class=\"age\">1 分前</span>")
         self.assertRegex(page, r"Codex</span>\s*<span class=\"age\">2 小時前</span>")
-        self.assertIn("頁面產生於", page)
+        self.assertIn("頁面更新於", page)
 
     def test_routine_card_renders(self) -> None:
         from app.render import html, view
@@ -302,6 +308,15 @@ class DashboardAgeTests(unittest.TestCase):
         self.assertIn("paintDialogue()", page)
         self.assertIn("/pet/spritesheet.webp", page)
         self.assertIn('setPet(seg < 4 ? "focus" : "break")', page)
+        self.assertIn('class="pomo-message" id="pomoMessage"', page)
+        self.assertIn('<span id="pomoRemain"></span> · <span id="pomoStage"></span>', page)
+        self.assertIn("justify-content:flex-start", page)
+        self.assertIn("messageEl.textContent = MAIN[seg]", page)
+        self.assertIn('stageEl.textContent = "第 "', page)
+        self.assertIn("font-size:3.5vmin", page)
+        self.assertIn("font-size:calc(2.8vmin + 2pt)", page)
+        self.assertIn("border:0.35vmin solid var(--ink)", page)
+        self.assertIn(".pet-dialogue::before", page)
 
     def test_routine_card_shows_quip_without_cycle_meta(self) -> None:
         from app.render import html, view

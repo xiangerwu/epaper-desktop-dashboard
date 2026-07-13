@@ -72,9 +72,9 @@
   .routine-top { flex:1.6; display:flex; align-items:center; gap:2.4vmin; min-height:0;
     border-bottom:0.3vmin dashed var(--soft); padding-bottom:1.4vmin; }
   .routine .routine-icon { flex:none; font-size:6vmin; line-height:1; }
-  .routine .routine-message { flex:1; min-width:0; font-size:2.5vmin; font-weight:800; line-height:1.35; }
+  .routine .routine-message { flex:1; min-width:0; font-size:3.5vmin; font-weight:800; line-height:1.35; }
   /* 中段番茄鐘:左側切換鈕 + 待機/運行兩態。純文字鈕、無圖示 */
-  .pomodoro { flex:2.0; display:flex; align-items:center; gap:2.4vmin; min-height:0; }
+  .pomodoro { flex:2.0; display:flex; align-items:center; gap:1.2vmin; min-height:0; }
   .pomo-btn { flex:none; border:0.35vmin solid var(--ink); border-radius:5vmin;
     padding:0.9vmin 3vmin; font:inherit; font-size:2.7vmin; font-weight:800;
     color:var(--ink); background:#fff; cursor:pointer; }
@@ -84,13 +84,13 @@
     gap:1.2vmin; font-size:3.0vmin; font-weight:600; color:var(--mute); }
   .pomo-idle[hidden] { display:none; }
   .pomo-idle .ic { font-size:4vmin; color:var(--ink); }
-  /* 運行:較大鬧鐘 + 右側(上 剩下時間、下 階段) */
-  .pomo-run { flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:2.2vmin; }
+  /* 運行:內容靠近停止鈕;右側上層強調工作/休息,下層保留時間與階段。 */
+  .pomo-run { flex:1; min-width:0; display:flex; align-items:center; justify-content:flex-start; gap:1.4vmin; }
   .pomo-run[hidden] { display:none; }
   .pomo-run .pomo-alarm { flex:none; font-size:6vmin; color:var(--ink); }
   .pomo-run-text { min-width:0; text-align:left; }
-  .pomo-remain { font-size:3.4vmin; font-weight:800; line-height:1.1; }
-  .pomo-stage { font-size:2.1vmin; font-weight:500; color:var(--mute); margin-top:0.4vmin; }
+  .pomo-message { font-size:3.4vmin; font-weight:800; line-height:1.1; }
+  .pomo-meta { font-size:2.1vmin; font-weight:500; color:var(--mute); margin-top:0.4vmin; }
   /* 桌寵只露上半身；完整 atlas 保持原尺寸，以 background-position 選幀。 */
   /* z 軸堆疊:寵物在下層(絕對定位、左下),對話框在上層撐滿整段,兩者 box 不互推 */
   .routine-extra { flex:6.4; min-height:0; --pet-k:2.15; border-top:0.3vmin dashed var(--soft);
@@ -103,8 +103,16 @@
     background-size:calc(152vmin * var(--pet-k)) calc(185.22vmin * var(--pet-k));
     background-position:calc(var(--pet-col) * -19vmin * var(--pet-k)) calc(var(--pet-row) * -20.58vmin * var(--pet-k));
     transform:translate(calc(var(--pet-trim) * -0.09896vmin * var(--pet-k)), calc(0.5vmin * var(--pet-k))); }
-  .pet-dialogue { position:absolute; right:0; top:0; bottom:0; width:52%; z-index:1;
-    display:flex; align-items:center; font-size:2.8vmin; line-height:1.4; }
+  .pet-dialogue { position:absolute; right:0; top:50%; width:52%; z-index:1;
+    transform:translateY(-50%); padding:1.5vmin 1.8vmin; background:#fff;
+    border:0.35vmin solid var(--ink); border-radius:2vmin;
+    font-size:calc(2.8vmin + 2pt); line-height:1.4; }
+  .pet-dialogue::before, .pet-dialogue::after { content:""; position:absolute; top:50%;
+    width:0; height:0; transform:translateY(-50%); }
+  .pet-dialogue::before { left:-2.3vmin; border-top:1.5vmin solid transparent;
+    border-bottom:1.5vmin solid transparent; border-right:2.3vmin solid var(--ink); }
+  .pet-dialogue::after { left:-1.7vmin; border-top:1.1vmin solid transparent;
+    border-bottom:1.1vmin solid transparent; border-right:1.7vmin solid #fff; }
 
   /* Steam 狀態:左右兩欄 */
   .steam h2 .ttl .ic { font-size:3.8vmin; }  /* 官方 logo 放大更明顯 */
@@ -177,8 +185,8 @@
           <div class="pomo-run" id="pomoRun" hidden>
             {{ ic.alarm('pomo-alarm') }}
             <div class="pomo-run-text">
-              <div class="pomo-remain" id="pomoRemain"></div>
-              <div class="pomo-stage" id="pomoStage"></div>
+              <div class="pomo-message" id="pomoMessage"></div>
+              <div class="pomo-meta"><span id="pomoRemain"></span> · <span id="pomoStage"></span></div>
             </div>
           </div>
         </div>
@@ -268,6 +276,7 @@
   var btn = document.getElementById("pomoBtn");
   var idleEl = document.getElementById("pomoIdle");
   var runEl = document.getElementById("pomoRun");
+  var messageEl = document.getElementById("pomoMessage");
   var remainEl = document.getElementById("pomoRemain");
   var stageEl = document.getElementById("pomoStage");
   var petEl = document.getElementById("petSprite");
@@ -336,8 +345,9 @@
     idleEl.hidden = true;
     runEl.hidden = false;
     // 距整個循環結束的剩餘,依段量化(50/40/30/20/10),只在到點才變。
+    messageEl.textContent = MAIN[seg];
     remainEl.textContent = "剩 " + (SEG_COUNT - seg) * (SEG_SEC / 60) + " 分";
-    stageEl.textContent = MAIN[seg] + " · 第 " + (seg + 1) + " 段 / 共 " + SEG_COUNT + " 段";
+    stageEl.textContent = "第 " + (seg + 1) + " 段 / 共 " + SEG_COUNT + " 段";
     setPet(seg < 4 ? "focus" : "break");
     var next = (seg + 1) * SEG_SEC;   // 下一段邊界(到 50 分則回待機)
     timer = setTimeout(render, (next - elapsed) * 1000 + 500);
