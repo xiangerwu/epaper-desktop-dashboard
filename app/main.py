@@ -11,11 +11,11 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 from . import cache, netinfo, scheduler
 from .collectors import COLLECTORS
-from .config import settings
+from .config import ROOT, settings
 from .render import html
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -36,6 +36,11 @@ app = FastAPI(title="pi-eink-dashboard", lifespan=lifespan)
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     return html.render(auto_refresh_seconds=settings.html_auto_refresh_seconds)
+
+
+@app.get("/pet/spritesheet.webp", include_in_schema=False)
+async def pet_spritesheet():
+    return FileResponse(ROOT / "pet" / "spritesheet.webp", media_type="image/webp")
 
 
 @app.get("/app", response_class=HTMLResponse)

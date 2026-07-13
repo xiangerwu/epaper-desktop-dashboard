@@ -296,6 +296,12 @@ class DashboardAgeTests(unittest.TestCase):
         # 番茄鐘三段版面:上層語錄 / 中番茄鐘 / 下保留空塊
         self.assertIn('class="pomodoro"', page)
         self.assertIn('class="routine-extra"', page)
+        self.assertIn('id="petSprite"', page)
+        self.assertIn('id="petDialogue"', page)
+        self.assertIn("var PET_DIALOGUES", page)
+        self.assertIn("paintDialogue()", page)
+        self.assertIn("/pet/spritesheet.webp", page)
+        self.assertIn('setPet(seg < 4 ? "focus" : "break")', page)
 
     def test_routine_card_shows_quip_without_cycle_meta(self) -> None:
         from app.render import html, view

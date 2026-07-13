@@ -1,10 +1,12 @@
 """view-model → HTML 字串。直接吐給裝置瀏覽器,不產圖。"""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from ..config import ROOT
 from . import view
 
 _env = Environment(
@@ -13,9 +15,25 @@ _env = Environment(
 )
 
 
+def _pet_dialogues() -> dict[str, list[str]]:
+    try:
+        data = json.loads((ROOT / "pet" / "dialogue.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {
+        state: [line for line in item.get("lines", []) if isinstance(line, str) and line]
+        for state, item in data.items()
+        if isinstance(state, str) and not state.startswith("_")
+        and isinstance(item, dict) and isinstance(item.get("lines"), list)
+    }
+
+
 def render(auto_refresh_seconds: int = 0) -> str:
     ctx = view.build()
     ctx["auto_refresh_seconds"] = auto_refresh_seconds
+    ctx["pet_dialogues"] = _pet_dialogues()
     return _env.get_template("dashboard.html.j2").render(**ctx)
 
 

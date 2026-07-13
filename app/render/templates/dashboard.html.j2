@@ -66,14 +66,14 @@
   .ai-item .sub { font-size:2.1vmin; color:var(--mute); margin-top:0.6vmin; }
   .ai-empty { font-size:2.5vmin; color:var(--mute); }
 
-  /* 作息卡:直向三段 3/4/3。上層時段語錄 + 中番茄鐘 + 下保留空塊,段間虛線 */
+  /* 作息卡:上兩段略收、下段留給半身桌寵。 */
   .routine { flex:0.75; display:flex; flex-direction:column; min-height:0; }
-  .routine-top { flex:3; display:flex; align-items:center; gap:2.4vmin; min-height:0;
+  .routine-top { flex:2.8; display:flex; align-items:center; gap:2.4vmin; min-height:0;
     border-bottom:0.3vmin dashed var(--soft); padding-bottom:1.4vmin; }
   .routine .routine-icon { flex:none; font-size:6vmin; line-height:1; }
   .routine .routine-message { flex:1; min-width:0; font-size:2.5vmin; line-height:1.35; }
   /* 中段番茄鐘:左側切換鈕 + 待機/運行兩態。純文字鈕、無圖示 */
-  .pomodoro { flex:4; display:flex; align-items:center; gap:2.4vmin; min-height:0; }
+  .pomodoro { flex:3.8; display:flex; align-items:center; gap:2.4vmin; min-height:0; }
   .pomo-btn { flex:none; border:0.35vmin solid var(--ink); border-radius:5vmin;
     padding:0.9vmin 3vmin; font:inherit; font-size:2.7vmin; font-weight:800;
     color:var(--ink); background:#fff; cursor:pointer; }
@@ -90,8 +90,18 @@
   .pomo-run-text { min-width:0; text-align:left; }
   .pomo-remain { font-size:3.4vmin; font-weight:800; line-height:1.1; }
   .pomo-stage { font-size:2.1vmin; font-weight:500; color:var(--mute); margin-top:0.4vmin; }
-  /* 下段保留空塊(暫留白) */
-  .routine-extra { flex:3; min-height:0; border-top:0.3vmin dashed var(--soft); }
+  /* 桌寵只露上半身；完整 atlas 保持原尺寸，以 background-position 選幀。 */
+  .routine-extra { flex:3.4; min-height:0; border-top:0.3vmin dashed var(--soft);
+    display:flex; align-items:flex-end; gap:1.2vmin; overflow:visible; padding:0.4vmin 1.2vmin 0; }
+  .pet-crop { flex:none; width:19vmin; height:13.2vmin; overflow:hidden;
+    transform:translateY(2.15vmin); }
+  .pet-sprite { width:19vmin; height:20.58vmin;
+    background:url('/pet/spritesheet.webp') no-repeat;
+    background-size:152vmin 185.22vmin;
+    background-position:calc(var(--pet-col) * -19vmin) calc(var(--pet-row) * -20.58vmin);
+    transform:translate(calc(var(--pet-trim) * -0.09896vmin), 0.5vmin); }
+  .pet-dialogue { flex:1; align-self:center; height:7.5vmin; overflow:hidden;
+    display:flex; align-items:center; font-size:2.5vmin; line-height:1.4; }
 
   /* Steam 狀態:左右兩欄 */
   .steam h2 .ttl .ic { font-size:3.8vmin; }  /* 官方 logo 放大更明顯 */
@@ -237,7 +247,10 @@
             </div>
           </div>
         </div>
-        <div class="routine-extra"></div>
+        <div class="routine-extra">
+          <div class="pet-crop" aria-hidden="true"><div class="pet-sprite" id="petSprite"></div></div>
+          <div class="pet-dialogue" id="petDialogue" aria-live="polite"></div>
+        </div>
       </section>
     </div>
   </div>
@@ -259,9 +272,58 @@
   var runEl = document.getElementById("pomoRun");
   var remainEl = document.getElementById("pomoRemain");
   var stageEl = document.getElementById("pomoStage");
+  var petEl = document.getElementById("petSprite");
+  var dialogueEl = document.getElementById("petDialogue");
+  var PET_DIALOGUES = {{ pet_dialogues | tojson }};
   var timer = null;
+  var petState = "";
+  var petFrame = 0;
+  var PET_STATES = {
+    idle:    { row: 0, frames: [0, 1, 2], trim: [34, 34, 31] },
+    greeting:{ row: 3, frames: [0, 1, 2, 3], trim: [30, 28, 29, 29] },
+    break:   { row: 4, frames: [0, 1, 2, 3, 4], trim: [18, 29, 24, 30, 30] },
+    waiting: { row: 6, frames: [0, 1, 2], trim: [38, 38, 39] },
+    focus:   { row: 7, frames: [0, 1, 2], trim: [33, 33, 34] }
+  };
 
-  function showIdle() { btn.textContent = "開始"; idleEl.hidden = false; runEl.hidden = true; }
+  function timePetState() {
+    var now = new Date();
+    var minute = now.getHours() * 60 + now.getMinutes();
+    if (minute >= 420 && minute < 510) return "greeting"; // 07:00–08:29
+    if ((minute >= 510 && minute < 750) ||
+        (minute >= 840 && minute < 1110) ||
+        (minute >= 1170 && minute < 1260)) return "waiting";
+    return "idle";
+  }
+
+  function paintPet() {
+    var state = PET_STATES[petState];
+    petEl.style.setProperty("--pet-row", state.row);
+    petEl.style.setProperty("--pet-col", state.frames[petFrame]);
+    petEl.style.setProperty("--pet-trim", state.trim[petFrame]);
+  }
+
+  function paintDialogue() {
+    var lines = PET_DIALOGUES[petState] || [];
+    dialogueEl.textContent = lines.length ? lines[Math.floor(Math.random() * lines.length)] : "";
+  }
+
+  function setPet(state) {
+    if (state !== petState) { petState = state; petFrame = 0; paintDialogue(); }
+    paintPet();
+  }
+
+  function advancePet() {
+    if (!localStorage.getItem(LS_KEY)) setPet(timePetState());
+    var frames = PET_STATES[petState].frames;
+    petFrame = (petFrame + 1) % frames.length;
+    paintPet();
+  }
+
+  function showIdle() {
+    btn.textContent = "開始"; idleEl.hidden = false; runEl.hidden = true;
+    setPet(timePetState());
+  }
 
   function idle() { localStorage.removeItem(LS_KEY); showIdle(); }
 
@@ -278,6 +340,7 @@
     // 距整個循環結束的剩餘,依段量化(50/40/30/20/10),只在到點才變。
     remainEl.textContent = "剩 " + (SEG_COUNT - seg) * (SEG_SEC / 60) + " 分";
     stageEl.textContent = MAIN[seg] + " · 第 " + (seg + 1) + " 段 / 共 " + SEG_COUNT + " 段";
+    setPet(seg < 4 ? "focus" : "break");
     var next = (seg + 1) * SEG_SEC;   // 下一段邊界(到 50 分則回待機)
     timer = setTimeout(render, (next - elapsed) * 1000 + 500);
   }
@@ -289,6 +352,7 @@
   });
 
   render();
+  setInterval(advancePet, 60000); // e-ink:每分鐘換一幀，不做連續動畫。
 })();
 </script>
 </body>
