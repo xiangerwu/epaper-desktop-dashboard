@@ -17,13 +17,14 @@
     fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
   .ic-fill { fill:currentColor; stroke:none; }  /* 品牌標(claude/openai)官方 fill 路徑 */
 
-  header { display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+  header { display:grid; grid-template-columns:1fr auto; align-items:center;
     border-bottom:0.4vmin solid var(--ink); padding-bottom:1.6vmin; }
-  header .date { font-size:4.4vmin; font-weight:800; }
-  header .right { justify-self:end; display:flex; align-items:center; gap:1.4vmin;
-    font-size:2.5vmin; color:var(--mute); }
-  header .right .ic { font-size:2.9vmin; color:var(--ink); }
-  .refresh { justify-self:center; display:inline-flex; align-items:center; gap:1vmin;
+  header .date { display:flex; align-items:baseline; gap:2.2vmin;
+    font-size:4.4vmin; font-weight:800; }
+  header .date .wk { font-size:3.4vmin; font-weight:800; }
+  header .date .upd { font-size:2.5vmin; font-weight:700; color:var(--mute); }
+  header .date .upd .ic { font-size:2.6vmin; margin-right:0.6vmin; color:var(--ink); }
+  .refresh { justify-self:end; display:inline-flex; align-items:center; gap:1vmin;
     border:0.35vmin solid var(--ink); border-radius:5vmin; padding:0.9vmin 2.8vmin;
     font-size:2.7vmin; font-weight:800; color:var(--ink); text-decoration:none; }
   .refresh .ic { font-size:2.9vmin; }
@@ -133,17 +134,13 @@
   .steam-prog .latest { font-size:2.1vmin; color:var(--mute); margin-top:0.2vmin;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
-  footer { text-align:center; font-size:2.3vmin; color:var(--mute);
-    border-top:0.35vmin solid var(--soft); padding-top:1.4vmin; }
-  footer .ic { font-size:2.4vmin; margin-right:0.8vmin; }
 </style>
 </head>
 <body>
 <div class="page">
   <header>
-    <div class="date">{{ generated_at.split('  ')[0] }}</div>
+    <div class="date">{{ generated_at.split('  ')[0] }}<span class="wk">星期{{ weekday }}</span><span class="upd">{{ ic.clock() }}頁面更新於 {{ generated_at.split('  ')[1] }}</span></div>
     <a class="refresh" href="/refresh">{{ ic.refresh() }} 立即刷新</a>
-    <div class="right">星期{{ weekday }} · {{ generated_at.split('  ')[1] }} {{ ic.wifi() }}</div>
   </header>
 
   <div class="main">
@@ -255,7 +252,6 @@
     </div>
   </div>
 
-  <footer>{{ ic.clock() }}頁面產生於 {{ generated_at.split('  ')[1] }}</footer>
 </div>
 
 <script>
