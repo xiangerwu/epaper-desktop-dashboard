@@ -35,7 +35,7 @@
   .col-right { flex:1.12; display:flex; flex-direction:column; gap:2.2vmin; min-width:0; }
   .ai-row { flex:0.85; display:flex; gap:2.2vmin; min-height:0; }
   .ai-row > .card { flex:1; }
-  .col-left .cal { flex:1; }
+  .col-right .cal { flex:1; }
 
   .card { border:0.4vmin solid var(--ink); border-radius:2vmin; padding:2.2vmin 2.6vmin; }
   .card h2 { font-size:2.8vmin; font-weight:800; margin-bottom:1.6vmin;
@@ -68,22 +68,22 @@
   .ai-empty { font-size:2.5vmin; color:var(--mute); }
 
   /* 作息卡:上兩段略收、下段留給半身桌寵。 */
-  .routine { flex:0.75; display:flex; flex-direction:column; min-height:0; }
-  .routine-top { flex:2.8; display:flex; align-items:center; gap:2.4vmin; min-height:0;
+  .routine { flex:1; display:flex; flex-direction:column; min-height:0; }
+  .routine-top { flex:1.6; display:flex; align-items:center; gap:2.4vmin; min-height:0;
     border-bottom:0.3vmin dashed var(--soft); padding-bottom:1.4vmin; }
   .routine .routine-icon { flex:none; font-size:6vmin; line-height:1; }
-  .routine .routine-message { flex:1; min-width:0; font-size:2.5vmin; line-height:1.35; }
+  .routine .routine-message { flex:1; min-width:0; font-size:2.5vmin; font-weight:800; line-height:1.35; }
   /* 中段番茄鐘:左側切換鈕 + 待機/運行兩態。純文字鈕、無圖示 */
-  .pomodoro { flex:3.8; display:flex; align-items:center; gap:2.4vmin; min-height:0; }
+  .pomodoro { flex:2.0; display:flex; align-items:center; gap:2.4vmin; min-height:0; }
   .pomo-btn { flex:none; border:0.35vmin solid var(--ink); border-radius:5vmin;
     padding:0.9vmin 3vmin; font:inherit; font-size:2.7vmin; font-weight:800;
     color:var(--ink); background:#fff; cursor:pointer; }
   .pomo-btn:active { background:var(--ink); color:#fff; }
   /* 待機:碼表 + 「番茄鐘 尚未啟動」 */
   .pomo-idle { flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
-    gap:1.2vmin; font-size:2.4vmin; font-weight:600; color:var(--mute); }
+    gap:1.2vmin; font-size:3.0vmin; font-weight:600; color:var(--mute); }
   .pomo-idle[hidden] { display:none; }
-  .pomo-idle .ic { font-size:3.6vmin; color:var(--ink); }
+  .pomo-idle .ic { font-size:4vmin; color:var(--ink); }
   /* 運行:較大鬧鐘 + 右側(上 剩下時間、下 階段) */
   .pomo-run { flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:2.2vmin; }
   .pomo-run[hidden] { display:none; }
@@ -92,17 +92,19 @@
   .pomo-remain { font-size:3.4vmin; font-weight:800; line-height:1.1; }
   .pomo-stage { font-size:2.1vmin; font-weight:500; color:var(--mute); margin-top:0.4vmin; }
   /* 桌寵只露上半身；完整 atlas 保持原尺寸，以 background-position 選幀。 */
-  .routine-extra { flex:3.4; min-height:0; border-top:0.3vmin dashed var(--soft);
-    display:flex; align-items:flex-end; gap:1.2vmin; overflow:visible; padding:0.4vmin 1.2vmin 0; }
-  .pet-crop { flex:none; width:19vmin; height:13.2vmin; overflow:hidden;
-    transform:translateY(2.15vmin); }
-  .pet-sprite { width:19vmin; height:20.58vmin;
+  /* z 軸堆疊:寵物在下層(絕對定位、左下),對話框在上層撐滿整段,兩者 box 不互推 */
+  .routine-extra { flex:6.4; min-height:0; --pet-k:2.15; border-top:0.3vmin dashed var(--soft);
+    position:relative; overflow:visible; padding:0.4vmin 1.2vmin 0; }
+  .pet-crop { position:absolute; left:0; bottom:0; z-index:0;
+    width:calc(19vmin * var(--pet-k)); height:calc(15vmin * var(--pet-k));
+    overflow:hidden; transform:translateY(2.15vmin); }
+  .pet-sprite { width:calc(19vmin * var(--pet-k)); height:calc(20.58vmin * var(--pet-k));
     background:url('/pet/spritesheet.webp') no-repeat;
-    background-size:152vmin 185.22vmin;
-    background-position:calc(var(--pet-col) * -19vmin) calc(var(--pet-row) * -20.58vmin);
-    transform:translate(calc(var(--pet-trim) * -0.09896vmin), 0.5vmin); }
-  .pet-dialogue { flex:1; align-self:center; height:7.5vmin; overflow:hidden;
-    display:flex; align-items:center; font-size:2.5vmin; line-height:1.4; }
+    background-size:calc(152vmin * var(--pet-k)) calc(185.22vmin * var(--pet-k));
+    background-position:calc(var(--pet-col) * -19vmin * var(--pet-k)) calc(var(--pet-row) * -20.58vmin * var(--pet-k));
+    transform:translate(calc(var(--pet-trim) * -0.09896vmin * var(--pet-k)), calc(0.5vmin * var(--pet-k))); }
+  .pet-dialogue { position:absolute; right:0; top:0; bottom:0; width:52%; z-index:1;
+    display:flex; align-items:center; font-size:2.8vmin; line-height:1.4; }
 
   /* Steam 狀態:左右兩欄 */
   .steam h2 .ttl .ic { font-size:3.8vmin; }  /* 官方 logo 放大更明顯 */
@@ -164,6 +166,47 @@
         {% endif %}
       </section>
 
+      <section class="card routine">
+        <div class="routine-top">
+          <div class="routine-icon">{{ routine.emoji }}</div>
+          <div class="routine-message">{{ routine.message }}</div>
+        </div>
+        <div class="pomodoro">
+          <button type="button" class="pomo-btn" id="pomoBtn">開始</button>
+          <div class="pomo-idle" id="pomoIdle">{{ ic.stopwatch() }}<span>番茄鐘 尚未啟動</span></div>
+          <div class="pomo-run" id="pomoRun" hidden>
+            {{ ic.alarm('pomo-alarm') }}
+            <div class="pomo-run-text">
+              <div class="pomo-remain" id="pomoRemain"></div>
+              <div class="pomo-stage" id="pomoStage"></div>
+            </div>
+          </div>
+        </div>
+        <div class="routine-extra">
+          <div class="pet-crop" aria-hidden="true"><div class="pet-sprite" id="petSprite"></div></div>
+          <div class="pet-dialogue" id="petDialogue" aria-live="polite"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-right">
+      <div class="ai-row">
+      {% for col in ai_columns %}
+      <section class="card">
+        <h2><span class="ttl">{% if col.icon == 'claude' %}{{ ic.claude() }}{% else %}{{ ic.openai() }}{% endif %} {{ col.name }}</span><span class="age">{{ col.age }}</span></h2>
+        {% for q in col.lines %}
+        <div class="ai-item">
+          <div class="top"><span class="lab">{{ q.label }}</span><span class="pct">{{ q.pct }}%</span></div>
+          <div class="bar"><span style="width: {{ q.pct }}%"></span></div>
+          {% if q.detail %}<div class="sub">{{ q.detail }}</div>{% endif %}
+        </div>
+        {% else %}
+        <div class="ai-empty">{{ col.empty }}</div>
+        {% endfor %}
+      </section>
+      {% endfor %}
+      </div>
+
       <section class="card cal steam">
         <h2><span class="ttl">{{ ic.steam() }} Steam 狀態</span><span class="age">{{ steam.age }}</span></h2>
         <div class="steam-cols">
@@ -206,47 +249,6 @@
             <div class="ai-empty">近期無遊玩紀錄</div>
             {% endif %}
           </div>
-        </div>
-      </section>
-    </div>
-
-    <div class="col-right">
-      <div class="ai-row">
-      {% for col in ai_columns %}
-      <section class="card">
-        <h2><span class="ttl">{% if col.icon == 'claude' %}{{ ic.claude() }}{% else %}{{ ic.openai() }}{% endif %} {{ col.name }}</span><span class="age">{{ col.age }}</span></h2>
-        {% for q in col.lines %}
-        <div class="ai-item">
-          <div class="top"><span class="lab">{{ q.label }}</span><span class="pct">{{ q.pct }}%</span></div>
-          <div class="bar"><span style="width: {{ q.pct }}%"></span></div>
-          {% if q.detail %}<div class="sub">{{ q.detail }}</div>{% endif %}
-        </div>
-        {% else %}
-        <div class="ai-empty">{{ col.empty }}</div>
-        {% endfor %}
-      </section>
-      {% endfor %}
-      </div>
-
-      <section class="card routine">
-        <div class="routine-top">
-          <div class="routine-icon">{{ routine.emoji }}</div>
-          <div class="routine-message">{{ routine.message }}</div>
-        </div>
-        <div class="pomodoro">
-          <button type="button" class="pomo-btn" id="pomoBtn">開始</button>
-          <div class="pomo-idle" id="pomoIdle">{{ ic.stopwatch() }}<span>番茄鐘 尚未啟動</span></div>
-          <div class="pomo-run" id="pomoRun" hidden>
-            {{ ic.alarm('pomo-alarm') }}
-            <div class="pomo-run-text">
-              <div class="pomo-remain" id="pomoRemain"></div>
-              <div class="pomo-stage" id="pomoStage"></div>
-            </div>
-          </div>
-        </div>
-        <div class="routine-extra">
-          <div class="pet-crop" aria-hidden="true"><div class="pet-sprite" id="petSprite"></div></div>
-          <div class="pet-dialogue" id="petDialogue" aria-live="polite"></div>
         </div>
       </section>
     </div>

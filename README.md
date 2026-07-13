@@ -1,7 +1,7 @@
 # epaper-desktop-dashboard
 
 一個後端程式(FastAPI):定時抓天氣 / AQI / AI 額度(Claude·Codex)/ Steam 狀態 / 時段語錄,
-存進 SQLite 快取,輸出一頁 **live HTML** 看板;右側另有前端番茄鐘與依時段／專注狀態切換的桌寵對話。電子閱讀器上的 app 開這個網頁即可顯示,
+存進 SQLite 快取,輸出一頁 **live HTML** 看板;左下另有前端番茄鐘與依時段／專注狀態切換的桌寵對話。電子閱讀器上的 app 開這個網頁即可顯示,
 後端另可透過 **ADB** 定時叫電子閱讀器刷新(喚醒 + 重載 + e-ink full refresh)。
 
 顯示端實測於 **HyRead Gaze Note Plus**(7.8" e-ink,1404×1872,Android 11),用 **Fully Kiosk** 滿版開網頁。

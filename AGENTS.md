@@ -31,9 +31,9 @@ app/main.py (FastAPI):  GET /  即時渲染   ·   GET /health   ·   app/device
 | `app/collectors/base.py` | `Collector` ABC:`source`、`interval_seconds`、`fetch()`;`run()` 吞例外保留舊快取 |
 | `app/collectors/*.py` | 各來源:weather / air / anthropic_usage / codex_usage / routine;openrouter 保留 |
 | `app/collectors/__init__.py` | `COLLECTORS` 清單;OpenRouter 目前不註冊 |
-| `app/render/view.py` | 讀快取組 view-model(天氣、AQI、AI 額度、右側作息卡) |
+| `app/render/view.py` | 讀快取組 view-model(天氣、AQI、AI 額度、Steam、左下作息卡) |
 | `app/render/html.py` | view-model → Jinja2 → HTML 字串 |
-| `app/render/templates/dashboard.html.j2` | e-ink 版面(vw 相對單位;AI 額度 + 右側作息卡) |
+| `app/render/templates/dashboard.html.j2` | e-ink 版面(vmin 相對單位;左欄 天氣＋作息卡、右欄 AI 額度＋Steam) |
 | `app/scheduler.py` | APScheduler:天氣/AQI 整點 cron;Claude/Codex/作息 600s interval +(選)ADB 刷新 job |
 | `app/device/adb.py` | ADB 封裝:connect/open/refresh/wake/screencap;CLI 入口 |
 | `app/main.py` | FastAPI app + lifespan(啟動先抓一輪)+ 備用埠選擇 |
