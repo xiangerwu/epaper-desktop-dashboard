@@ -32,7 +32,7 @@
   .main { flex:1; display:flex; gap:2.2vmin; min-height:0; }
   .col-left { flex:1; display:flex; flex-direction:column; gap:2.2vmin; }
   .col-right { flex:1.12; display:flex; flex-direction:column; gap:2.2vmin; min-width:0; }
-  .ai-row { flex:1; display:flex; gap:2.2vmin; min-height:0; }
+  .ai-row { flex:0.85; display:flex; gap:2.2vmin; min-height:0; }
   .ai-row > .card { flex:1; }
   .col-left .cal { flex:1; }
 
@@ -67,7 +67,7 @@
   .ai-empty { font-size:2.5vmin; color:var(--mute); }
 
   /* 作息提醒:右欄下半橫跨兩張 AI 卡 */
-  .routine { flex:0.58; display:flex; align-items:center; gap:2.6vmin; min-height:0; }
+  .routine { flex:0.75; display:flex; align-items:center; gap:2.6vmin; min-height:0; }
   .routine .routine-icon { flex:none; font-size:8vmin; line-height:0; }
   .routine .routine-copy { flex:1; min-width:0; }
   .routine h2 { margin-bottom:0.8vmin; }
@@ -84,6 +84,7 @@
     padding:1.1vmin 0; }
   .steam-stat:not(:last-child) { border-bottom:0.3vmin dashed var(--soft); }
   .steam-stat .k { font-size:2.7vmin; color:var(--mute); }
+  .steam-stat .k.emoji { font-size:3.4vmin; line-height:1; }  /* 🏆/🏅 圖示比文字標籤略大 */
   .steam-stat .v { font-size:3.7vmin; font-weight:800; font-variant-numeric:tabular-nums; }
   .steam-stat .v small { font-size:2.3vmin; font-weight:600; color:var(--mute); }
   /* 右:上遊戲 / 下成就進度 */
@@ -142,13 +143,13 @@
         <div class="steam-cols">
           <div class="steam-left">
             {% if steam.summary and steam.summary.level is not none %}
-            <div class="steam-stat"><span class="k">等級</span><span class="v">{{ steam.summary.level }}</span></div>
+            <div class="steam-stat"><span class="k">レベル</span><span class="v">{{ steam.summary.level }}</span></div>
             {% endif %}
             {% if steam.summary and steam.summary.total_achievements is not none %}
-            <div class="steam-stat"><span class="k">成就</span><span class="v">{{ "{:,}".format(steam.summary.total_achievements) }}</span></div>
+            <div class="steam-stat"><span class="k emoji">🏆</span><span class="v">{{ "{:,}".format(steam.summary.total_achievements) }}</span></div>
             {% endif %}
             {% if steam.summary and steam.summary.badge_count is not none %}
-            <div class="steam-stat"><span class="k">徽章</span><span class="v">{{ steam.summary.badge_count }}</span></div>
+            <div class="steam-stat"><span class="k emoji">🏅</span><span class="v">{{ steam.summary.badge_count }}</span></div>
             {% endif %}
             {% if steam.summary and steam.summary.hours_2weeks_total is not none %}
             <div class="steam-stat"><span class="k">近2週</span><span class="v">{{ "%.1f"|format(steam.summary.hours_2weeks_total) }} <small>h</small></span></div>
