@@ -81,17 +81,40 @@ def _run(
     return proc.stdout if binary else proc.stdout.decode(errors="replace")
 
 
-def connect() -> str:
-    if ":" in TARGET:  # WiFi
-        msg = str(_run(["connect", TARGET], target=False)).strip()
-        if "connected" not in msg and "already" not in msg:
-            raise AdbError(f"adb connect {TARGET} 失敗: {msg}")
-        return msg
-    return devices()
-
-
 def devices() -> str:
     return str(_run(["devices", "-l"], target=False)).strip()
+
+
+def disconnect() -> str:
+    return str(_run(["disconnect", TARGET], target=False)).strip()
+
+
+def _target_state() -> str | None:
+    """從 `adb devices -l` 找 TARGET 的狀態 token(device/offline/unauthorized);找不到回 None。"""
+    for line in devices().splitlines():
+        parts = line.split()
+        if parts and parts[0] == TARGET:
+            return parts[1] if len(parts) > 1 else None
+    return None
+
+
+def connect() -> str:
+    """確保連上 TARGET。WiFi 斷線會進入 offline 卡死,先 disconnect 清 stale 再重連。"""
+    if ":" in TARGET:  # WiFi
+        state = _target_state()
+        if state == "device":
+            return f"{TARGET}: device"
+        if state is not None:  # offline / unauthorized 等 stale 條目 → 清掉再連
+            try:
+                disconnect()
+            except AdbError:
+                pass
+        _run(["connect", TARGET], target=False)
+        state = _target_state()
+        if state != "device":
+            raise AdbError(f"adb connect {TARGET} 後仍為 {state or '未連線'}")
+        return f"{TARGET}: device"
+    return devices()
 
 
 def wake() -> None:
@@ -139,6 +162,7 @@ def screencap(local: str) -> str:
 _COMMANDS = {
     "devices": lambda a: print(devices()),
     "connect": lambda a: print(connect()),
+    "disconnect": lambda a: print(disconnect()),
     "wake": lambda a: wake(),
     "open": lambda a: open_dashboard(),
     "refresh": lambda a: refresh(),

@@ -4,7 +4,7 @@ import asyncio
 import json
 import subprocess
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -71,6 +71,38 @@ class AdbErrorTests(unittest.TestCase):
         with patch.object(adb, "_run", side_effect=adb.AdbError("cannot execute")):
             with self.assertRaisesRegex(adb.AdbError, "cannot execute"):
                 adb.devices()
+
+    def test_connect_reconnects_when_offline(self) -> None:
+        # WiFi target 先 offline,connect() 應先 disconnect 清 stale 再重連成功。
+        calls: list[str] = []
+        states = iter(["offline", "device"])  # 重連後轉 device
+
+        def fake_run(args, *, binary=False, target=True):
+            calls.append(args[0])
+            if args[0] == "devices":
+                return f"List of devices attached\n1.2.3.4:5555   {next(states)} product:x\n"
+            return "ok"
+
+        with patch.object(adb, "TARGET", "1.2.3.4:5555"), patch.object(
+            adb, "_run", side_effect=fake_run
+        ):
+            adb.connect()  # 不應 raise
+
+        self.assertIn("disconnect", calls)
+        self.assertIn("connect", calls)
+        self.assertLess(calls.index("disconnect"), calls.index("connect"))
+
+    def test_connect_raises_when_still_offline(self) -> None:
+        def fake_run(args, *, binary=False, target=True):
+            if args[0] == "devices":
+                return "List of devices attached\n1.2.3.4:5555   offline\n"
+            return "ok"
+
+        with patch.object(adb, "TARGET", "1.2.3.4:5555"), patch.object(
+            adb, "_run", side_effect=fake_run
+        ):
+            with self.assertRaises(adb.AdbError):
+                adb.connect()
 
 
 class HealthTests(unittest.IsolatedAsyncioTestCase):
@@ -165,74 +197,35 @@ class SchedulerTests(unittest.TestCase):
 
 
 class RoutineTests(unittest.TestCase):
-    def test_eight_time_boundaries(self) -> None:
+    def test_quip_shows_anchor_soon_after_time(self) -> None:
         from app.collectors.routine import build_payload
 
-        day = datetime(2026, 7, 13)
-        boundaries = [
-            ("01:59", "night", "02:00", "deep_night"),
-            ("06:59", "deep_night", "07:00", "breakfast"),
-            ("08:59", "breakfast", "09:00", "work_morning"),
-            ("11:59", "work_morning", "12:00", "lunch"),
-            ("12:59", "lunch", "13:00", "work_afternoon"),
-            ("17:59", "work_afternoon", "18:00", "dinner"),
-            ("18:59", "dinner", "19:00", "work_evening"),
-            ("21:59", "work_evening", "22:00", "night"),
-        ]
-        for before, before_segment, at, at_segment in boundaries:
-            with self.subTest(at=at):
-                before_time = datetime.combine(day, datetime.strptime(before, "%H:%M").time())
-                at_time = datetime.combine(day, datetime.strptime(at, "%H:%M").time())
-                self.assertEqual(build_payload(before_time, None)["segment"], before_segment)
-                self.assertEqual(build_payload(at_time, None)["segment"], at_segment)
-
-    def test_nonwork_titles_and_icons(self) -> None:
-        from app.collectors.routine import build_payload
-
+        # 到某時段錨點後 GRACE_MIN(20)分內,顯示該時段語錄。
         cases = [
-            (0, "夜深了，該休息了", "moon"),
-            (2, "凌晨了，請立即休息", "moon"),
-            (7, "早安，記得吃早餐", "breakfast"),
-            (12, "午餐時間", "meal"),
-            (18, "晚餐時間提示", "meal"),
-            (22, "夜深了，該休息了", "moon"),
+            (8, 35, "🌅", "教授就要改你這個人了"),   # 08:30 + 5 分
+            (9, 30, "🌅", "文獻就追不上我"),          # 剛好 09:30
+            (14, 5, "☕", "喝杯咖啡"),                # 14:00 + 5 分
+            (23, 40, "🌙", "先跟自己和解"),           # 23:30 + 10 分
         ]
-        for hour, title, icon in cases:
-            with self.subTest(hour=hour):
-                payload = build_payload(datetime(2026, 7, 13, hour), None)
-                self.assertEqual((payload["title"], payload["icon"]), (title, icon))
+        for hour, minute, emoji, fragment in cases:
+            with self.subTest(at=f"{hour:02d}:{minute:02d}"):
+                payload = build_payload(datetime(2026, 7, 13, hour, minute))
+                self.assertEqual(payload["emoji"], emoji)
+                self.assertIn(fragment, payload["message"])
                 self.assertEqual(payload["cycle_step"], 0)
                 self.assertIsNone(payload["remaining_updates"])
 
-    def test_work_cycle_wraps_every_four_updates(self) -> None:
-        from app.collectors.routine import build_payload
+    def test_quip_shows_random_filler_in_gap(self) -> None:
+        from app.collectors.routine import FILLERS, build_payload
 
-        now = datetime(2026, 7, 13, 9)
-        payloads = []
-        previous = None
-        for offset in range(5):
-            previous = build_payload(now + timedelta(minutes=10 * offset), previous)
-            payloads.append(previous)
-
-        self.assertEqual([p["cycle_step"] for p in payloads], [1, 2, 3, 4, 1])
-        self.assertEqual([p["remaining_updates"] for p in payloads], [3, 2, 1, 0, 3])
-        self.assertEqual(
-            [p["title"] for p in payloads],
-            ["專注工作中", "專注工作中", "專注工作中", "喝水與伸展時間", "專注工作中"],
-        )
-        self.assertEqual([p["icon"] for p in payloads], ["focus", "focus", "focus", "water", "focus"])
-
-    def test_work_cycle_resets_on_segment_or_day_change(self) -> None:
-        from app.collectors.routine import build_payload
-
-        morning = build_payload(datetime(2026, 7, 13, 9), None)
-        morning = build_payload(datetime(2026, 7, 13, 9, 10), morning)
-        afternoon = build_payload(datetime(2026, 7, 13, 13), morning)
-        next_day = build_payload(datetime(2026, 7, 14, 13), afternoon)
-
-        self.assertEqual(morning["cycle_step"], 2)
-        self.assertEqual(afternoon["cycle_step"], 1)
-        self.assertEqual(next_day["cycle_step"], 1)
+        filler_texts = {text for _, text in FILLERS}
+        filler_emojis = {emoji for emoji, _ in FILLERS}
+        # 13:00 距 12:30 錨點 30 分 > 20,進入空檔 → 隨機提示。
+        p1 = build_payload(datetime(2026, 7, 13, 13, 0))
+        p2 = build_payload(datetime(2026, 7, 13, 13, 5))   # 同一 10 分桶
+        self.assertIn(p1["message"], filler_texts)
+        self.assertIn(p1["emoji"], filler_emojis)
+        self.assertEqual(p1, p2)   # 同桶穩定,重載不變
 
 
 class RefreshTests(unittest.IsolatedAsyncioTestCase):
@@ -285,38 +278,8 @@ class DashboardAgeTests(unittest.TestCase):
             "codex_usage": None,
             "routine": {
                 "payload": {
-                    "mode": "work",
-                    "segment": "work_morning",
-                    "title": "專注工作中",
-                    "message": "保持節奏",
-                    "icon": "focus",
-                    "cycle_step": 2,
-                    "remaining_updates": 2,
-                },
-                "age_seconds": 0,
-            },
-        }
-        with patch.object(view.cache, "get", side_effect=cached.get):
-            page = html.render()
-
-        self.assertIn('<section class="card routine">', page)
-        self.assertIn('<div class="routine-icon">', page)
-        self.assertIn("專注工作中", page)
-        self.assertIn("保持節奏", page)
-
-    def test_nonwork_routine_hides_zero_cycle(self) -> None:
-        from app.render import html, view
-
-        cached = {
-            "weather": None,
-            "air_quality": None,
-            "anthropic_usage": None,
-            "codex_usage": None,
-            "routine": {
-                "payload": {
-                    "title": "午餐時間",
-                    "message": "好好吃飯",
-                    "icon": "meal",
+                    "emoji": "🌅",
+                    "message": "只要我醒得夠快,文獻就追不上我。",
                     "cycle_step": 0,
                     "remaining_updates": None,
                 },
@@ -326,7 +289,36 @@ class DashboardAgeTests(unittest.TestCase):
         with patch.object(view.cache, "get", side_effect=cached.get):
             page = html.render()
 
-        self.assertIn("午餐時間", page)
+        self.assertIn('<section class="card routine">', page)
+        self.assertIn('<div class="routine-icon">', page)
+        self.assertIn("🌅", page)
+        self.assertIn("文獻就追不上我", page)
+        # 番茄鐘三段版面:上層語錄 / 中番茄鐘 / 下保留空塊
+        self.assertIn('class="pomodoro"', page)
+        self.assertIn('class="routine-extra"', page)
+
+    def test_routine_card_shows_quip_without_cycle_meta(self) -> None:
+        from app.render import html, view
+
+        cached = {
+            "weather": None,
+            "air_quality": None,
+            "anthropic_usage": None,
+            "codex_usage": None,
+            "routine": {
+                "payload": {
+                    "emoji": "🌙",
+                    "message": "放過跑不出的數據,今晚先跟自己和解。",
+                    "cycle_step": 0,
+                    "remaining_updates": None,
+                },
+                "age_seconds": 0,
+            },
+        }
+        with patch.object(view.cache, "get", side_effect=cached.get):
+            page = html.render()
+
+        self.assertIn("今晚先跟自己和解", page)
         self.assertNotIn("第 0 次", page)
 
 

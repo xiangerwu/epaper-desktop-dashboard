@@ -66,13 +66,32 @@
   .ai-item .sub { font-size:2.1vmin; color:var(--mute); margin-top:0.6vmin; }
   .ai-empty { font-size:2.5vmin; color:var(--mute); }
 
-  /* 作息提醒:右欄下半橫跨兩張 AI 卡 */
-  .routine { flex:0.75; display:flex; align-items:center; gap:2.6vmin; min-height:0; }
-  .routine .routine-icon { flex:none; font-size:8vmin; line-height:0; }
-  .routine .routine-copy { flex:1; min-width:0; }
-  .routine h2 { margin-bottom:0.8vmin; }
-  .routine .routine-message { font-size:2.6vmin; line-height:1.4; }
-  .routine .routine-meta { margin-top:0.8vmin; font-size:2.1vmin; color:var(--mute); }
+  /* 作息卡:直向三段 3/4/3。上層時段語錄 + 中番茄鐘 + 下保留空塊,段間虛線 */
+  .routine { flex:0.75; display:flex; flex-direction:column; min-height:0; }
+  .routine-top { flex:3; display:flex; align-items:center; gap:2.4vmin; min-height:0;
+    border-bottom:0.3vmin dashed var(--soft); padding-bottom:1.4vmin; }
+  .routine .routine-icon { flex:none; font-size:6vmin; line-height:1; }
+  .routine .routine-message { flex:1; min-width:0; font-size:2.5vmin; line-height:1.35; }
+  /* 中段番茄鐘:左側切換鈕 + 待機/運行兩態。純文字鈕、無圖示 */
+  .pomodoro { flex:4; display:flex; align-items:center; gap:2.4vmin; min-height:0; }
+  .pomo-btn { flex:none; border:0.35vmin solid var(--ink); border-radius:5vmin;
+    padding:0.9vmin 3vmin; font:inherit; font-size:2.7vmin; font-weight:800;
+    color:var(--ink); background:#fff; cursor:pointer; }
+  .pomo-btn:active { background:var(--ink); color:#fff; }
+  /* 待機:碼表 + 「番茄鐘 尚未啟動」 */
+  .pomo-idle { flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
+    gap:1.2vmin; font-size:2.4vmin; font-weight:600; color:var(--mute); }
+  .pomo-idle[hidden] { display:none; }
+  .pomo-idle .ic { font-size:3.6vmin; color:var(--ink); }
+  /* 運行:較大鬧鐘 + 右側(上 剩下時間、下 階段) */
+  .pomo-run { flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:2.2vmin; }
+  .pomo-run[hidden] { display:none; }
+  .pomo-run .pomo-alarm { flex:none; font-size:6vmin; color:var(--ink); }
+  .pomo-run-text { min-width:0; text-align:left; }
+  .pomo-remain { font-size:3.4vmin; font-weight:800; line-height:1.1; }
+  .pomo-stage { font-size:2.1vmin; font-weight:500; color:var(--mute); margin-top:0.4vmin; }
+  /* 下段保留空塊(暫留白) */
+  .routine-extra { flex:3; min-height:0; border-top:0.3vmin dashed var(--soft); }
 
   /* Steam 狀態:左右兩欄 */
   .steam h2 .ttl .ic { font-size:3.8vmin; }  /* 官方 logo 放大更明顯 */
@@ -203,19 +222,74 @@
       </div>
 
       <section class="card routine">
-        <div class="routine-icon">{{ ic.routine(routine.icon) }}</div>
-        <div class="routine-copy">
-          <h2><span class="ttl">{{ routine.title }}</span></h2>
+        <div class="routine-top">
+          <div class="routine-icon">{{ routine.emoji }}</div>
           <div class="routine-message">{{ routine.message }}</div>
-          {% if routine.cycle_step %}
-          <div class="routine-meta">第 {{ routine.cycle_step }} 次{% if routine.remaining_updates is not none %} · 剩餘 {{ routine.remaining_updates }} 次{% endif %}</div>
-          {% endif %}
         </div>
+        <div class="pomodoro">
+          <button type="button" class="pomo-btn" id="pomoBtn">開始</button>
+          <div class="pomo-idle" id="pomoIdle">{{ ic.stopwatch() }}<span>番茄鐘 尚未啟動</span></div>
+          <div class="pomo-run" id="pomoRun" hidden>
+            {{ ic.alarm('pomo-alarm') }}
+            <div class="pomo-run-text">
+              <div class="pomo-remain" id="pomoRemain"></div>
+              <div class="pomo-stage" id="pomoStage"></div>
+            </div>
+          </div>
+        </div>
+        <div class="routine-extra"></div>
       </section>
     </div>
   </div>
 
   <footer>{{ ic.clock() }}頁面產生於 {{ generated_at.split('  ')[1] }}</footer>
 </div>
+
+<script>
+/* 番茄鐘:狀態存電子閱讀器本機 localStorage,伺服器維持無狀態。
+   一循環 50 分鐘 = 5 段 × 10 分:第 1-4 段工作,第 5 段喝水休息;滿 50 分回待機。
+   只在每段到點切換一次提醒文字(e-ink 友善)。文案/時間改下面常數即可。 */
+(function () {
+  var SEG_SEC = 600;      // 每段秒數(10 分)
+  var SEG_COUNT = 5;      // 一循環段數(50 分)
+  var LS_KEY = "pomo_start";
+  var MAIN = ["專注工作中", "專注工作中", "專注工作中", "專注工作中", "喝水休息"];
+  var btn = document.getElementById("pomoBtn");
+  var idleEl = document.getElementById("pomoIdle");
+  var runEl = document.getElementById("pomoRun");
+  var remainEl = document.getElementById("pomoRemain");
+  var stageEl = document.getElementById("pomoStage");
+  var timer = null;
+
+  function showIdle() { btn.textContent = "開始"; idleEl.hidden = false; runEl.hidden = true; }
+
+  function idle() { localStorage.removeItem(LS_KEY); showIdle(); }
+
+  function render() {
+    if (timer) { clearTimeout(timer); timer = null; }
+    var raw = localStorage.getItem(LS_KEY);
+    if (!raw) { showIdle(); return; }
+    var elapsed = (Date.now() - parseInt(raw, 10)) / 1000;
+    if (!(elapsed >= 0) || elapsed >= SEG_SEC * SEG_COUNT) { idle(); return; }
+    var seg = Math.floor(elapsed / SEG_SEC);
+    btn.textContent = "停止";
+    idleEl.hidden = true;
+    runEl.hidden = false;
+    // 距整個循環結束的剩餘,依段量化(50/40/30/20/10),只在到點才變。
+    remainEl.textContent = "剩 " + (SEG_COUNT - seg) * (SEG_SEC / 60) + " 分";
+    stageEl.textContent = MAIN[seg] + " · 第 " + (seg + 1) + " 段 / 共 " + SEG_COUNT + " 段";
+    var next = (seg + 1) * SEG_SEC;   // 下一段邊界(到 50 分則回待機)
+    timer = setTimeout(render, (next - elapsed) * 1000 + 500);
+  }
+
+  btn.addEventListener("click", function () {
+    if (localStorage.getItem(LS_KEY)) { idle(); }
+    else { localStorage.setItem(LS_KEY, String(Date.now())); }
+    render();
+  });
+
+  render();
+})();
+</script>
 </body>
 </html>

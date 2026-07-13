@@ -69,10 +69,8 @@ def build() -> dict:
 
     routine_c = cache.get("routine")
     routine = {
-        "mode": "waiting",
-        "title": "作息提醒準備中",
+        "emoji": "🌙",
         "message": "等待下一次更新",
-        "icon": "focus",
         "cycle_step": None,
         "remaining_updates": None,
         **(routine_c["payload"] if routine_c else {}),
