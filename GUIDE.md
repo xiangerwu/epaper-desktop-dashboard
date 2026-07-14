@@ -5,6 +5,7 @@
 Android 11,用 **Fully Kiosk** 全螢幕),主機另可用 **ADB** 控制刷新。
 
 本檔是給「人」看的完整操作手冊。給 AI 協作看的技術說明在 [AGENTS.md](AGENTS.md)。
+樹莓派 + Tailscale 的一步步佈署見 [PI_DEPLOY.md](PI_DEPLOY.md)。
 
 ---
 

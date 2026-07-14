@@ -4,6 +4,8 @@
 
 實機環境：**HyRead Gaze Note Plus**、1404×1872、Android 11、Fully Kiosk。
 
+樹莓派佈署（含複製金鑰、Claude/Codex 登入、Tailscale 連閱讀器）見 [PI_DEPLOY.md](PI_DEPLOY.md)。
+
 ![看板預覽](docs/preview.png)
 
 ## 功能

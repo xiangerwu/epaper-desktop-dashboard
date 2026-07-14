@@ -3,6 +3,8 @@
 從零到「常駐主機開機自動跑看板、電子閱讀器定時被 ADB 刷新」。
 下面含 adb 安裝步驟。
 
+> 樹莓派 + Tailscale 的一步步照抄版(含複製金鑰與 Claude/Codex 登入)見 [PI_DEPLOY.md](PI_DEPLOY.md)。
+
 ---
 
 ## A. 常駐主機跑起服務
