@@ -71,8 +71,11 @@ app/main.py (FastAPI):  GET /  即時渲染   ·   GET /health   ·   app/device
 
 ## 不要做
 
-- **不要自動 refresh Claude/Codex 的 OAuth token**。refresh 會輪換 token,寫回失誤會弄壞使用者
-  正在用的 Claude Code / Codex CLI 登入。過期就顯示舊值,由使用者在該機重新登入。
+- **Claude token refresh 預設關,靠旗標開**。`CLAUDE_TOKEN_REFRESH=true` 時,Claude collector
+  才會用 refreshToken 換新並「防禦性寫回」`.credentials.json`(重讀最新檔、只換 accessToken/
+  refreshToken/expiresAt、原子替換)。只在派這種「唯一持有憑證、沒跑互動 CLI」的機器開;
+  dev PC 別開(refresh 會作廢舊 refreshToken,和互動 CLI 的輪換打架)。旗標關就維持舊行為:
+  過期即 raise、顯示舊值,由使用者重新登入。**Codex token 目前仍不 refresh**。
 - **不要 commit** 二進位(`./adb/`)、`data/`、`.env`、model 權重。
 - **不要重新引入 Playwright/Pillow**(已刻意移除以維持輕量);顯示走網頁。
 - **不要批次刪檔**(見使用者全域規則);一次刪一個明確路徑。

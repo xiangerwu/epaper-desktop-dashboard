@@ -120,10 +120,15 @@ chmod 600 ~/.claude/.credentials.json ~/.codex/auth.json
 **替代方案**:不想搬憑證,就直接在派上用 CLI 各登入一次(`claude` 走登入流程、`codex` 登入),
 效果一樣。
 
-> **重要:token 不會自動保鮮。** 服務**刻意不自動 refresh** 這兩個 token(refresh 會輪換
-> token,寫回失誤會弄壞你正在用的 CLI 登入)。token 一旦過期,Claude/Codex 卡會停在舊值。
-> 要恢復,就回到「有在用 Claude Code / Codex 的那台機器」重新登入,再重複 3b / 3c 複製過來;
-> 或直接在派上重登一次。若派是無人值守的純顯示機,這兩張卡會隨 token 到期而失去更新。
+> **重要:token 保鮮。** Codex 卡目前**不自動 refresh**,過期就停在舊值。Claude 卡預設也不
+> refresh,但派上建議在 `.env` 設 **`CLAUDE_TOKEN_REFRESH=true`**:服務會用 refreshToken 自動
+> 換新並防禦性寫回 `.credentials.json`,讓 Claude 卡在無人值守下自我維持(refreshToken 本身
+> 效期較長,約數週;它也到期才需重登)。
+>
+> **這個旗標只在派上開**(派是唯一持有這份憑證、沒跑互動 CLI 的機器)。**dev PC 別開** —
+> refresh 會輪換 token、作廢舊的,和你正在用的互動 `claude` CLI 打架。dev PC 靠 Claude Code
+> 自己保鮮即可。token 若真的過期(旗標關、或 refreshToken 也過期),就回「有在用 Claude Code /
+> Codex 的機器」重登再重複 3b / 3c,或直接在派上重登。
 
 ### 3e. 改派上 `.env` 兩處
 
@@ -133,6 +138,7 @@ nano ~/epaper-desktop-dashboard/.env
 
 - `ADB_BINARY=adb` — 用 `apt` 裝的系統版,不是開發機的 `./adb/adb.exe`。
 - `DASHBOARD_URL` — 先留著,步驟六拿到 Tailscale IP 再回填。
+- `CLAUDE_TOKEN_REFRESH=true` — 讓 Claude 額度卡自動保鮮(見 3c 說明;只在派上設)。
 
 ---
 
@@ -308,8 +314,9 @@ sudo systemctl restart epaper-dashboard
 
 - **頁面打不開**:派防火牆放行 8000(`sudo ufw allow 8000` 若有開 ufw);`DASHBOARD_URL`
   用 tailnet 或區網 IP,別用 `localhost`(那是閱讀器自己的 localhost)。
-- **Claude/Codex 卡沒資料**:憑證沒複製對、路徑不對、或 token 過期。`curl .../health` 看
-  `claude`/`codex` 的 `available`;回步驟三重新複製或在派上重登。
+- **Claude/Codex 卡沒資料或停在舊值**:憑證沒複製對、路徑不對、或 token 過期。`curl .../health`
+  看 `anthropic_usage`/`codex_usage` 的 `stale`。Claude 卡若在派上仍會過期,確認 `.env` 有設
+  `CLAUDE_TOKEN_REFRESH=true`(見 3c);仍失敗就回步驟三重新複製或在派上重登。
 - **Tailscale 連不上**:確認派與閱讀器**登入同一個帳號**;派上 `tailscale status` 看兩端是否都在線。
 - **adb 一直 offline**:閱讀器上重按一次「允許 USB 偵錯」;tailnet 模式先
   `adb disconnect` 再 `adb connect <閱讀器tailnetIP>:5555`。

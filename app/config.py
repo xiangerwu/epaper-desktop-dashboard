@@ -59,6 +59,11 @@ class Settings:
     # 兩者不吃 API key,見對應 collector。OpenRouter 才需自填金鑰:
     openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
 
+    # Claude token 過期時是否用 refreshToken 自動換新並寫回 .credentials.json。
+    # 預設 False。只在「派這種唯一持有憑證、沒跑互動 CLI」的機器開;dev PC 別開,
+    # 以免和互動 claude CLI 的 token 輪換衝突(refresh 會作廢舊 refreshToken)。
+    claude_token_refresh: bool = _bool("CLAUDE_TOKEN_REFRESH", False)
+
     # --- ADB 刷新控制 ---
     refresh_via_adb: bool = _bool("REFRESH_VIA_ADB", False)
     # ADB 定時刷新裝置的間隔秒數
