@@ -24,11 +24,20 @@
   header .date .wk { font-size:3.4vmin; font-weight:800; }
   header .date .upd { font-size:2.5vmin; font-weight:700; color:var(--mute); }
   header .date .upd .ic { font-size:2.6vmin; margin-right:0.6vmin; color:var(--ink); }
-  .refresh { justify-self:end; display:inline-flex; align-items:center; gap:1vmin;
+  header .actions { justify-self:end; display:inline-flex; align-items:center; gap:1.6vmin; }
+  .refresh { display:inline-flex; align-items:center; gap:1vmin;
     border:0.35vmin solid var(--ink); border-radius:5vmin; padding:0.9vmin 2.8vmin;
     font-size:2.7vmin; font-weight:800; color:var(--ink); text-decoration:none; }
   .refresh .ic { font-size:2.9vmin; }
   .refresh:active { background:var(--ink); color:#fff; }
+  .soundtog { display:inline-flex; align-items:center; justify-content:center;
+    border:0.35vmin solid var(--ink); border-radius:50%; padding:0.9vmin;
+    background:none; color:var(--ink); cursor:pointer; line-height:0; }
+  .soundtog .ic { font-size:3.2vmin; }
+  .soundtog .s-off { display:none; }
+  .soundtog.muted .s-on { display:none; }
+  .soundtog.muted .s-off { display:inline-flex; }
+  .soundtog:active { background:var(--ink); color:#fff; }
 
   .main { flex:1; display:flex; gap:2.2vmin; min-height:0; }
   .col-left { flex:1; display:flex; flex-direction:column; gap:2.2vmin; }
@@ -150,7 +159,10 @@
 <div class="page">
   <header>
     <div class="date">{{ generated_at.split('  ')[0] }}<span class="wk">星期{{ weekday }}</span><span class="upd">{{ ic.clock() }}頁面更新於 {{ generated_at.split('  ')[1] }}</span></div>
-    <a class="refresh" href="/refresh">{{ ic.refresh() }} 立即刷新</a>
+    <div class="actions">
+      <button type="button" class="soundtog" id="soundToggle" aria-label="音效開關" aria-pressed="false"><span class="s-on">{{ ic.sound_on() }}</span><span class="s-off">{{ ic.sound_off() }}</span></button>
+      <a class="refresh" href="/refresh">{{ ic.refresh() }} 立即刷新</a>
+    </div>
   </header>
 
   <div class="main">
@@ -271,7 +283,10 @@
 (function () {
   var SEG_SEC = 600;      // 每段秒數(10 分)
   var SEG_COUNT = 5;      // 一循環段數(50 分)
+  var END_SEG = 4;        // 進入此段(喝水休息)播 end 音
   var LS_KEY = "pomo_start";
+  var LS_END = "pomo_end_played";  // 已播 end 音的 pomo_start 值,同循環只播一次
+  var LS_MUTE = "sound_muted";     // "1" = 靜音
   var MAIN = ["專注工作中", "專注工作中", "專注工作中", "專注工作中", "喝水休息"];
   var btn = document.getElementById("pomoBtn");
   var idleEl = document.getElementById("pomoIdle");
@@ -292,6 +307,43 @@
     waiting: { row: 6, frames: [0, 1, 2], trim: [38, 38, 39] },
     focus:   { row: 7, frames: [0, 1, 2], trim: [33, 33, 34] }
   };
+
+  // 音效:清單向後端拿(使用者自備檔案),預載成 Audio;受最上方靜音開關控制。
+  var soundBtn = document.getElementById("soundToggle");
+  var sounds = { start: [], end: [] };
+  function loadSounds(kind) {
+    fetch("/pet/sound/" + kind + "/list")
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (urls) {
+        sounds[kind] = (urls || []).map(function (u) {
+          var a = new Audio(u); a.preload = "auto"; return a;
+        });
+      })
+      .catch(function () {});
+  }
+  loadSounds("start");
+  loadSounds("end");
+
+  function isMuted() { return localStorage.getItem(LS_MUTE) === "1"; }
+  function paintMute() {
+    var m = isMuted();
+    soundBtn.classList.toggle("muted", m);
+    soundBtn.setAttribute("aria-pressed", m ? "true" : "false");
+  }
+  soundBtn.addEventListener("click", function () {
+    localStorage.setItem(LS_MUTE, isMuted() ? "0" : "1");
+    paintMute();
+  });
+  paintMute();
+
+  function playRandom(kind) {
+    if (isMuted()) return;
+    var list = sounds[kind];
+    if (!list || !list.length) return;
+    var a = list[Math.floor(Math.random() * list.length)];
+    try { a.currentTime = 0; } catch (e) {}
+    a.play().catch(function () {});
+  }
 
   function timePetState() {
     var now = new Date();
@@ -332,7 +384,7 @@
     setPet(timePetState());
   }
 
-  function idle() { localStorage.removeItem(LS_KEY); showIdle(); }
+  function idle() { localStorage.removeItem(LS_KEY); localStorage.removeItem(LS_END); showIdle(); }
 
   function render() {
     if (timer) { clearTimeout(timer); timer = null; }
@@ -341,6 +393,11 @@
     var elapsed = (Date.now() - parseInt(raw, 10)) / 1000;
     if (!(elapsed >= 0) || elapsed >= SEG_SEC * SEG_COUNT) { idle(); return; }
     var seg = Math.floor(elapsed / SEG_SEC);
+    // 進入喝水休息(END_SEG)播 end 音;用 pomo_start 當鍵,整頁重載後同循環不重播。
+    if (seg >= END_SEG && localStorage.getItem(LS_END) !== raw) {
+      localStorage.setItem(LS_END, raw);
+      playRandom("end");
+    }
     btn.textContent = "停止";
     idleEl.hidden = true;
     runEl.hidden = false;
@@ -355,7 +412,7 @@
 
   btn.addEventListener("click", function () {
     if (localStorage.getItem(LS_KEY)) { idle(); }
-    else { localStorage.setItem(LS_KEY, String(Date.now())); }
+    else { localStorage.setItem(LS_KEY, String(Date.now())); playRandom("start"); }
     render();
   });
 

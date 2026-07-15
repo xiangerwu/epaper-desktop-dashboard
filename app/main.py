@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import cache, netinfo, scheduler
 from .collectors import COLLECTORS
@@ -41,6 +42,30 @@ async def dashboard():
 @app.get("/pet/spritesheet.webp", include_in_schema=False)
 async def pet_spritesheet():
     return FileResponse(ROOT / "pet" / "spritesheet.webp", media_type="image/webp")
+
+
+_AUDIO_EXTS = {".wav", ".mp3", ".ogg"}
+_SOUND_KINDS = {"start", "end"}
+
+
+# 須在 StaticFiles mount 之前宣告,否則 /pet/sound/* 會被 mount 攔走。
+@app.get("/pet/sound/{kind}/list", include_in_schema=False)
+async def pet_sound_list(kind: str):
+    """列出 pet/sound/{kind} 底下的音檔 URL(番茄鐘隨機音效用);使用者自備檔案。"""
+    if kind not in _SOUND_KINDS:
+        return JSONResponse({"error": "unknown kind"}, status_code=404)
+    d = ROOT / "pet" / "sound" / kind
+    if not d.is_dir():
+        return JSONResponse([])
+    names = sorted(
+        p.name for p in d.iterdir()
+        if p.is_file() and p.suffix.lower() in _AUDIO_EXTS
+    )
+    return JSONResponse([f"/pet/sound/{kind}/{name}" for name in names])
+
+
+# 直接送靜態音檔(list 路由已在上方,先比對故不會被攔)。
+app.mount("/pet/sound", StaticFiles(directory=ROOT / "pet" / "sound"), name="pet-sound")
 
 
 @app.get("/app", response_class=HTMLResponse)
