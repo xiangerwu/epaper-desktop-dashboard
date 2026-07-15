@@ -109,6 +109,22 @@ scp ~/.codex/auth.json pi@<派IP>:~/.codex/auth.json
 
 Windows 開發機的路徑是 `%USERPROFILE%\.codex\auth.json`。
 
+之後要從 Windows 重複更新，可在專案 `.env` 加入私有 SSH 設定：
+
+```ini
+PI_SSH_HOST=<派IP>
+PI_SSH_USER=pi
+```
+
+再從專案根目錄執行：
+
+```powershell
+.\scripts\update-pi-codex-credential.ps1
+```
+
+腳本只傳送 `%USERPROFILE%\.codex\auth.json`，先上傳成暫存檔再替換；IP 留在不進版控的
+`.env`。首次連線會要求確認 SSH host key；未設定 SSH key 時每次會要求輸入 Pi 密碼。
+
 ### 3d. 收尾
 
 在派上鎖權限:
