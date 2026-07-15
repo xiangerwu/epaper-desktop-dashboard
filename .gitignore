@@ -6,6 +6,10 @@ __pycache__/
 venv/
 data/
 /pet/*.webp
+# 番茄鐘音效為使用者自備(版權),只留資料夾結構(見各 .gitkeep)
+/pet/sound/**/*.wav
+/pet/sound/**/*.mp3
+/pet/sound/**/*.ogg
 *.png
 !app/render/assets/*.png
 !docs/*.png
