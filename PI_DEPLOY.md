@@ -123,7 +123,7 @@ PI_SSH_USER=pi
 ```
 
 腳本只傳送 `%USERPROFILE%\.codex\auth.json`，先上傳成暫存檔再替換；IP 留在不進版控的
-`.env`。首次連線會要求確認 SSH host key；未設定 SSH key 時每次會要求輸入 Pi 密碼。
+`.env`，SSH 固定使用 `%USERPROFILE%\.ssh\id_ed25519_for_pi`；缺少這把私鑰會直接停止。
 
 ### 3d. 收尾
 
