@@ -114,7 +114,7 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
    - **Start URL** = 看板網址(USB 測試 `http://localhost:8000/`;WiFi 用 `http://<主機IP>:8000/`)。
    - **Fullscreen Mode** ON、**Show Action Bar** OFF、**Show Address Bar** OFF。
 3. 按 **START USING FULLY**。
-4. 自動刷新由**頁面自己**做(HTML 內建 `meta refresh`,預設 600 秒),不必設 Fully 的 reload。
+4. 自動刷新由**頁面自己**做(內建 JS,預設每 600 秒探活後才 `reload()`),不必設 Fully 的 reload。
 
 **無人值守強化(選用,在 Fully 設定裡,從左緣滑出選單)**
 - 開 **Kiosk Mode** 鎖定,避免誤觸離開。
@@ -190,7 +190,7 @@ python -m app.device.adb screencap out.png   # 抓裝置畫面回來驗證
 | `HOST` | `0.0.0.0` | 綁定介面,`0.0.0.0` = 對區網開放 |
 | `PORT` | `8000` | 主要服務埠 |
 | `FALLBACK_PORTS` | `8080,8888` | 主埠被占時依序嘗試 |
-| `HTML_AUTO_REFRESH_SECONDS` | `600` | 頁面自刷秒數;`0` = 關(交給 ADB) |
+| `HTML_AUTO_REFRESH_SECONDS` | `600` | 頁面自刷秒數(探活成功才 reload);`0` = 關(交給 ADB) |
 | `CWA_API_KEY` | — | 中央氣象署授權碼 |
 | `CWA_LOCATION` | `臺中市` | 縣市名,例 `雲林縣` |
 | `MOENV_API_KEY` | — | 環境部資料開放平臺 API key |
@@ -224,7 +224,8 @@ python -m app.device.adb screencap out.png   # 抓裝置畫面回來驗證
   無資料或資料年齡超過兩倍收集週期才是 stale,剛好兩倍仍視為新鮮。
 - **憑證過期**(Claude/Codex):同上,顯示舊值不清空;重新登入該機後自動恢復。
 - **伺服器重啟**:啟動時先同步抓一輪再開埠,首個請求就有資料。
-- **網路 / 裝置離線**:Fully 停在最後一次載入的畫面;恢復後下次 `meta refresh` 自動更新。
+- **網路 / 裝置離線**:頁面 JS 到點先 `fetch("/health")` 探活,失敗就每 30 秒重試、留在目前完整
+  畫面上,不會導覽去空白/錯誤頁;恢復後探活成功才 `reload()`。
 - **ADB 斷線**:排程推送只記警告,不影響伺服器與頁面自刷。
 
 ---
@@ -238,4 +239,5 @@ python -m app.device.adb screencap out.png   # 抓裝置畫面回來驗證
 | Claude/Codex 格空白或「待憑證」 | 在該機用 Claude Code / Codex CLI 登入;跨機則設對應 token 環境變數 |
 | `adb devices` 看不到裝置 | 裝置開發者選項開 USB 偵錯並在裝置上「允許」;WiFi 先 `adb tcpip 5555` 再 `adb connect ip:5555` |
 | 啟動說埠被占用 | 交給備用埠自動處理;或改 `PORT`,記得同步改裝置 URL |
-| e-ink 殘影明顯 | 靠 `meta refresh` 整頁重載通常會全刷;仍明顯再查 `DEVICE_REFRESH_BROADCAST`(見 DEPLOY C-3) |
+| e-ink 殘影明顯 | 靠頁面整頁重載通常會全刷;仍明顯再查 `DEVICE_REFRESH_BROADCAST`(見 DEPLOY C-3) |
+| 裝置放久了不再跟著循環更新、畫面破版 | 舊版靠 `meta refresh` 盲目導覽,到點若網路剛好斷線會停在系統錯誤頁、之後永不再刷新;現已改成 JS 探活成功才 reload(見上「網路/裝置離線」)。若仍卡住,多半是 WebView/Fully 本身當掉,ADB `refresh` 或重開 App 排除 |

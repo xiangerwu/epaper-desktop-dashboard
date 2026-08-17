@@ -108,8 +108,9 @@ Gaze Note Plus:設定 → 關於 → 連點「版本號」數次開開發者選�
 2. Fully 設定:
    - **Start URL** = 看板網址(正式部署用 `http://<主機IP>:8000/`;USB 測試用 `http://localhost:8000/` + adb reverse)。
    - 開 **Kiosk Mode**,隱藏 status/navigation bar(全螢幕沉浸)。
-   - 自動刷新:看板 HTML 內建 `meta refresh`(`HTML_AUTO_REFRESH_SECONDS`,預設 600),
-     Fully 會每 10 分自己重載,**不必**另設 Fully 的 reload。要改頻率調該環境變數即可。
+   - 自動刷新:看板內建 JS(`HTML_AUTO_REFRESH_SECONDS`,預設 600),到點先 `fetch("/health")`
+     探活成功才 `reload()`,失敗每 30 秒重試、留在目前完整畫面上(不會導覽去斷線錯誤頁),
+     **不必**另設 Fully 的 reload。要改頻率調該環境變數即可。
      此重載與 ADB `refresh` 都不會推進作息循環;只有排程收集或點頁首「立即刷新」
      (`/refresh`)才會更新作息,手動按鈕每按一次會推進一步。
 3. 設為開機啟動 / 預設 App。

@@ -68,6 +68,11 @@ app/main.py (FastAPI):  GET /  即時渲染   ·   GET /health   ·   app/device
 6. **Fully 埠綁定**:裝置端 URL 是寫死的埠;若伺服器用了備用埠,Fully Start URL 要一起改。
 7. **APScheduler 暫停語意**:`add_job(..., next_run_time=None)` 會建立暫停 job,之後永遠不跑。
    啟動首抓由 lifespan 負責;interval job 省略該參數,讓 APScheduler 排定下一次執行。
+8. **`<meta http-equiv="refresh">` 會盲目導覽**:到點若網路/伺服器剛好斷線,WebView 會停在
+   系統錯誤頁,該頁沒有 meta refresh,之後永遠不再自動刷新——裝置端症狀是「放久了不再跟著
+   循環更新、e-ink 殘影疊出破版」。已改成 `dashboard.html.j2` 內的 JS:到點先
+   `fetch("/health")` 探活,成功才 `location.reload()`,失敗每 30 秒重試並留在目前完整頁面上。
+   別再改回單純 meta refresh。
 
 ## 不要做
 

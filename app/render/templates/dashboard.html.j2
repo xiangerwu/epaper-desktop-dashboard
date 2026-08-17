@@ -3,7 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-{% if auto_refresh_seconds %}<meta http-equiv="refresh" content="{{ auto_refresh_seconds }}">{% endif %}
+{% if auto_refresh_seconds %}
+<script>
+(function () {
+  // meta refresh 會盲目導覽:若到點當下網路/伺服器剛好斷線,WebView 會停在系統錯誤頁,
+  // 該頁沒有 meta refresh,之後永遠不會再自動刷新 —— 這就是「卡住不再跟著循環、
+  // e-ink 殘影疊出破版」的成因。改用 fetch 探活成功才 reload;失敗就留在目前完整的
+  // 頁面上,過一陣子重試,不會導覽去空白/錯誤頁。
+  var INTERVAL_MS = {{ auto_refresh_seconds }} * 1000;
+  var RETRY_MS = 30000;
+  function tick() {
+    fetch("/health", { cache: "no-store" })
+      .then(function (r) {
+        if (r.ok) { location.reload(); } else { setTimeout(tick, RETRY_MS); }
+      })
+      .catch(function () { setTimeout(tick, RETRY_MS); });
+  }
+  setTimeout(tick, INTERVAL_MS);
+})();
+</script>
+{% endif %}
 <style>
   /* e-ink 橫向佈局。尺寸用 vmin(=短邊/高)基準,橫直向皆一致;字級與框線已再縮小 */
   :root { --ink:#000; --mute:#555; --soft:#e2e2e2; }
