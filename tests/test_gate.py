@@ -11,7 +11,10 @@ from unittest.mock import MagicMock, patch
 from app import cache
 from app.collectors.anthropic_usage import _reset_label as anthropic_reset_label
 from app.collectors.base import Collector
-from app.collectors.codex_usage import _reset_label as codex_reset_label
+from app.collectors.codex_usage import (
+    _reset_label as codex_reset_label,
+    _usage_lines as codex_usage_lines,
+)
 from app.device import adb
 
 
@@ -29,6 +32,16 @@ class ResetLabelTests(unittest.TestCase):
         self.assertEqual(codex_reset_label(epoch), expected)
         self.assertEqual(codex_reset_label("not-an-epoch"), "")
         self.assertEqual(codex_reset_label(None), "")
+
+    def test_codex_usage_keeps_five_hour_when_windows_are_reordered(self) -> None:
+        lines = codex_usage_lines({"rate_limit": {
+            "primary_window": {"used_percent": 17, "limit_window_seconds": 604800},
+            "secondary_window": {"used_percent": 3, "limit_window_seconds": "18000"},
+        }})
+        self.assertEqual(
+            [(line["label"], line["pct"]) for line in lines],
+            [("5 小時用量", 3), ("7 日內用量", 17)],
+        )
 
 
 class CacheFallbackTests(unittest.IsolatedAsyncioTestCase):

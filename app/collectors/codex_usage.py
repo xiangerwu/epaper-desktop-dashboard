@@ -22,19 +22,20 @@ from .base import Collector
 USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
 
 
-def _read_token() -> str:
+def _read_auth() -> tuple[str, str]:
     env = os.getenv("CODEX_ACCESS_TOKEN", "").strip()
     if env:
-        return env
+        return env, ""
     base = os.getenv("CODEX_HOME", "").strip() or str(Path.home() / ".codex")
     auth = Path(base) / "auth.json"
     if not auth.exists():
         raise RuntimeError(f"找不到 {auth};請先用 Codex CLI 登入(codex)")
     d = json.loads(auth.read_text(encoding="utf-8"))
-    tok = (d.get("tokens") or {}).get("access_token") or d.get("access_token", "")
+    tokens = d.get("tokens") or {}
+    tok = tokens.get("access_token") or d.get("access_token", "")
     if not tok:
         raise RuntimeError("auth.json 內無 access_token")
-    return tok
+    return tok, tokens.get("account_id") or d.get("account_id", "")
 
 
 def _reset_label(epoch: float | None) -> str:
@@ -61,38 +62,46 @@ def _window_label(seconds: int | None) -> str:
     return f"{round(hours / 24)} 日內用量"
 
 
+def _usage_lines(data: dict) -> list[dict]:
+    """依回應中的窗口秒數整理，主／次窗口換位也不影響顯示。"""
+    rl = data.get("rate_limit") or {}
+    wins = [rl.get("primary_window"), rl.get("secondary_window")]
+    extra = data.get("additional_rate_limits")
+    if isinstance(extra, list):
+        wins += extra
+
+    seen: set[int | None] = set()
+    rows = []
+    for win in wins:
+        if not isinstance(win, dict) or win.get("used_percent") is None:
+            continue
+        try:
+            secs = int(win.get("limit_window_seconds"))
+        except (TypeError, ValueError):
+            secs = None
+        if secs in seen:
+            continue
+        seen.add(secs)
+        rows.append((secs if secs is not None else 1 << 62, {
+            "label": _window_label(secs),
+            "pct": round(win["used_percent"]),
+            "detail": _reset_label(win.get("reset_at")),
+        }))
+    return [row for _, row in sorted(rows)]
+
+
 class CodexUsageCollector(Collector):
     source = "codex_usage"
     interval_seconds = 600  # 10 分
 
     async def fetch(self) -> dict:
-        token = _read_token()
+        token, account_id = _read_auth()
+        headers = {"Authorization": f"Bearer {token}"}
+        if account_id:
+            headers["ChatGPT-Account-Id"] = account_id
         async with client() as c:
-            r = await c.get(USAGE_URL, headers={"Authorization": f"Bearer {token}"})
+            r = await c.get(USAGE_URL, headers=headers)
             r.raise_for_status()
             data = r.json()
 
-        # rate_limit 內含數個窗口;API 會把 5小時/7日 換到 primary/secondary,
-        # 故依各窗口的 limit_window_seconds 標籤,不靠位置。
-        rl = data.get("rate_limit") or {}
-        wins = [rl.get("primary_window"), rl.get("secondary_window")]
-        extra = data.get("additional_rate_limits")
-        if isinstance(extra, list):
-            wins += extra
-
-        seen: set = set()
-        rows = []
-        for win in wins:
-            if not win or win.get("used_percent") is None:
-                continue
-            secs = win.get("limit_window_seconds")
-            if secs in seen:
-                continue
-            seen.add(secs)
-            rows.append((secs if secs is not None else 1 << 62, {
-                "label": _window_label(secs),
-                "pct": round(win["used_percent"]),
-                "detail": _reset_label(win.get("reset_at")),
-            }))
-        rows.sort(key=lambda r: r[0])  # 短窗口(5小時)在前,長窗口(7日)在後
-        return {"lines": [row for _, row in rows]}
+        return {"lines": _usage_lines(data)}
