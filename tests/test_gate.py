@@ -43,6 +43,15 @@ class ResetLabelTests(unittest.TestCase):
             [("5 小時用量", 3), ("7 日內用量", 17)],
         )
 
+    def test_codex_usage_keeps_empty_five_hour_line_when_api_omits_it(self) -> None:
+        lines = codex_usage_lines({"rate_limit": {
+            "primary_window": {"used_percent": 17, "limit_window_seconds": 604800},
+        }})
+        self.assertEqual(
+            [(line["label"], line["pct"], line["detail"]) for line in lines],
+            [("5 小時用量", None, "暫無資料"), ("7 日內用量", 17, "")],
+        )
+
 
 class CacheFallbackTests(unittest.IsolatedAsyncioTestCase):
     async def test_failed_collector_keeps_last_successful_value(self) -> None:

@@ -87,6 +87,12 @@ def _usage_lines(data: dict) -> list[dict]:
             "pct": round(win["used_percent"]),
             "detail": _reset_label(win.get("reset_at")),
         }))
+    if 18000 not in seen:
+        rows.append((18000, {
+            "label": "5 小時用量",
+            "pct": None,
+            "detail": "暫無資料",
+        }))
     return [row for _, row in sorted(rows)]
 
 

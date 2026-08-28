@@ -235,8 +235,8 @@
         <h2><span class="ttl">{% if col.icon == 'claude' %}{{ ic.claude() }}{% else %}{{ ic.openai() }}{% endif %} {{ col.name }}</span><span class="age">{{ col.age }}</span></h2>
         {% for q in col.lines %}
         <div class="ai-item">
-          <div class="top"><span class="lab">{{ q.label }}</span><span class="pct">{{ q.pct }}%</span></div>
-          <div class="bar"><span style="width: {{ q.pct }}%"></span></div>
+          <div class="top"><span class="lab">{{ q.label }}</span><span class="pct">{% if q.pct is not none %}{{ q.pct }}%{% else %}—{% endif %}</span></div>
+          <div class="bar"><span{% if q.pct is not none %} style="width: {{ q.pct }}%"{% endif %}></span></div>
           {% if q.detail %}<div class="sub">{{ q.detail }}</div>{% endif %}
         </div>
         {% else %}
