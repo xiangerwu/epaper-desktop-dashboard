@@ -57,6 +57,7 @@
   .soundtog.muted .s-on { display:none; }
   .soundtog.muted .s-off { display:inline-flex; }
   .soundtog:active { background:var(--ink); color:#fff; }
+  a.soundtog { text-decoration:none; }  /* 齒輪:持股/基金設定頁入口,外觀同音效鈕 */
 
   .main { flex:1; display:flex; gap:2.2vmin; min-height:0; }
   .col-left { flex:1; display:flex; flex-direction:column; gap:2.2vmin; }
@@ -174,6 +175,44 @@
   .steam-prog .latest { font-size:2.1vmin; color:var(--mute); margin-top:0.2vmin;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
+  /* 右下格位:Steam 與台股持股輪播,外框/標題/虛線沿用 Steam 卡片 */
+  .rot { flex:1; display:flex; min-height:0; }
+  .rot > .card { flex:1; min-width:0; }
+  .rot > .card[hidden] { display:none; }
+  /* 股票/基金卡左欄依內容寬(大數字多寬就多寬),省下的寬度給右欄;不沿用 Steam 左欄固定 40%。 */
+  .stk-left { flex:0 0 auto; justify-content:flex-start; gap:0.8vmin; padding:0.6vmin 1.8vmin 0.6vmin 0; }
+  .stk-left .stk-count { margin-top:auto; }  /* 大數字靠上,檔數統計貼底,中間放農民曆宜忌 */
+  /* 宜忌:width:0 + min-width:100% 讓長清單不撐寬左欄;每列最多 2 行 */
+  .stk-alm { width:0; min-width:100%; margin-top:1vmin; }
+  .stk-alm div { font-size:2.1vmin; line-height:1.35; display:-webkit-box; -webkit-box-orient:vertical;
+    -webkit-line-clamp:2; overflow:hidden; }
+  .stk-alm div + div { margin-top:0.6vmin; }
+  .stk-alm span { white-space:nowrap; margin-right:0.6vmin; }  /* 詞不拆行(避免「餘事/勿取」) */
+  .stk-alm b { display:inline-block; width:2.6vmin; height:2.6vmin; line-height:2.3vmin; text-align:center;
+    border-radius:50%; font-size:1.8vmin; margin-right:0.6vmin; vertical-align:0.1vmin;
+    border:0.3vmin solid var(--ink); }
+  .stk-alm .yi b { background:var(--ink); color:#fff; }  /* 宜:實心;忌:空心 */
+  /* 基金卡左欄:今日電網(隨機一種發電類型) */
+  .stk-power { width:0; min-width:100%; margin-top:1vmin; padding-top:0.8vmin;
+    border-top:0.3vmin dashed var(--soft); font-size:2.1vmin; line-height:1.35; }
+  .stk-power .pw-name { font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .stk-power .pw-share { font-size:3.3vmin; font-weight:800; line-height:1.15; font-variant-numeric:tabular-nums; }
+  .stk-power .pw-share small { font-size:2.1vmin; font-weight:500; color:var(--mute); }
+  .stk-power .pw-sub { color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #cardStocks .steam-cols, #cardFunds .steam-cols { gap:1.8vmin; }
+  .stk-left .k { font-size:2.7vmin; color:var(--mute); }
+  .stk-big { font-size:calc(6.4vmin - 2pt); font-weight:900; line-height:1.1; font-variant-numeric:tabular-nums;
+    white-space:nowrap; }
+  .stk-pnl { font-size:3.3vmin; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .stk-count { font-size:2.1vmin; color:var(--mute); }
+  .stk-right { justify-content:center; }
+  .stk-right .steam-stat { padding:0.6vmin 0; }
+  .stk-right .k { flex:none; white-space:nowrap; }
+  .stk-right .v { text-align:right; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-size:3vmin; }
+  .stk-right .v small { display:block; font-size:2.1vmin; line-height:1.25; white-space:normal; }
+  .stk-right .k.fund { color:var(--ink); font-weight:800; }  /* 基金卡:列標籤是基金名 */
+  #cardFunds .stk-right .steam-stat { padding:0.3vmin 0; }
 </style>
 </head>
 <body>
@@ -181,6 +220,7 @@
   <header>
     <div class="date">{{ generated_at.split('  ')[0] }}<span class="wk">星期{{ weekday }}</span><span class="upd">{{ ic.clock() }}頁面更新於 {{ generated_at.split('  ')[1] }}</span></div>
     <div class="actions">
+      <a class="soundtog" href="/settings" aria-label="持股與基金設定">{{ ic.gear() }}</a>
       <button type="button" class="soundtog" id="soundToggle" aria-label="音效開關" aria-pressed="false"><span class="s-on">{{ ic.sound_on() }}</span><span class="s-off">{{ ic.sound_off() }}</span></button>
       <a class="refresh" href="/refresh">{{ ic.refresh() }} 立即刷新</a>
     </div>
@@ -248,7 +288,8 @@
       {% endfor %}
       </div>
 
-      <section class="card cal steam">
+      <div class="rot">
+      <section class="card cal steam" id="cardSteam">
         <h2><span class="ttl">{{ ic.steam() }} Steam 狀態</span><span class="age">{{ steam.age }}</span></h2>
         <div class="steam-cols">
           <div class="steam-left">
@@ -292,11 +333,95 @@
           </div>
         </div>
       </section>
+      {% if stocks %}
+      <section class="card cal steam" id="cardStocks" hidden>
+        <h2><span class="ttl">{{ ic.trend() }} 台股持股</span><span class="age">{{ stocks.status }}</span></h2>
+        {% if stocks.has_quotes %}
+        <div class="steam-cols">
+          <div class="steam-left stk-left">
+            <div class="k">今日</div>
+            <div>
+              <div class="stk-big">{{ stocks.day_pct }}</div>
+              <div class="stk-pnl">{{ stocks.day_pnl }}</div>
+            </div>
+            {% if stocks.almanac %}<div class="stk-alm"><div class="yi"><b>宜</b>{% for w in stocks.almanac.yi %}<span>{{ w }}</span> {% endfor %}</div>{% if not stocks.missing %}<div class="ji"><b>忌</b>{% for w in stocks.almanac.ji %}<span>{{ w }}</span> {% endfor %}</div>{% endif %}</div>{% endif %}
+            <div class="stk-count">{{ stocks.count }} 檔・下跌 {{ stocks.down }}・上漲 {{ stocks.up }}{% if stocks.missing %}<br>{{ stocks.missing }} 檔無報價{% endif %}</div>
+          </div>
+          <div class="steam-right stk-right">
+            <div class="steam-stat"><span class="k">總市值</span><span class="v">{{ stocks.total_value }}</span></div>
+            <div class="steam-stat"><span class="k">未實現</span><span class="v">{{ stocks.unrealized.value }}<small>{{ stocks.unrealized.sub }}</small>{% if stocks.unrealized.note %}<small>{{ stocks.unrealized.note }}</small>{% endif %}</span></div>
+            <div class="steam-stat"><span class="k">最弱</span><span class="v">{{ stocks.weakest.name }}<small>{{ stocks.weakest.pct }}</small></span></div>
+            <div class="steam-stat"><span class="k">最穩</span><span class="v">{{ stocks.strongest.name }}<small>{{ stocks.strongest.pct }}</small></span></div>
+          </div>
+        </div>
+        {% else %}
+        <div class="ai-empty">尚無報價・{{ stocks.count }} 檔等待更新</div>
+        {% endif %}
+      </section>
+      {% endif %}
+      {% if funds %}
+      <section class="card cal steam" id="cardFunds" hidden>
+        <h2><span class="ttl">{{ ic.fund() }} 基金</span><span class="age">{{ funds.status }}</span></h2>
+        {% if funds.has_navs %}
+        <div class="steam-cols">
+          <div class="steam-left stk-left">
+            <div class="k">最新漲跌</div>
+            <div>
+              <div class="stk-big">{{ funds.day_pct }}</div>
+              <div class="stk-pnl">{{ funds.day_pnl }}</div>
+            </div>
+            {% if funds.power and not (funds.earliest and funds.missing) %}{% set pw = funds.power %}<div class="stk-power">
+              <div class="pw-name">今日電網・{{ pw.name }}</div>
+              <div class="pw-share">{{ "%.1f"|format(pw.share) }}%<small> 佔全台</small></div>
+              <div class="pw-sub">{{ "{:,.0f}".format(pw.mw) }} MW・{{ pw.stamp }}</div>
+            </div>{% endif %}
+            <div class="stk-count">總市值 {{ funds.total_value }}{% if funds.earliest %}<br>最早淨值 {{ funds.earliest }}{% endif %}{% if funds.missing %}<br>{{ funds.missing }} 檔無淨值{% endif %}</div>
+          </div>
+          <div class="steam-right stk-right">
+            <div class="steam-stat"><span class="k">總獲利</span><span class="v">{{ funds.profit.value }}<small>{{ funds.profit.sub }}</small>{% if funds.profit.note %}<small>{{ funds.profit.note }}</small>{% endif %}</span></div>
+            {% for f in funds.top %}
+            <div class="steam-stat"><span class="k fund">{{ f.name }}</span><span class="v">{{ f.pct }}<small>{{ f.ret }}</small></span></div>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <div class="ai-empty">尚無淨值・{{ funds.count }} 檔等待更新</div>
+        {% endif %}
+      </section>
+      {% endif %}
+      </div>
     </div>
   </div>
 
 </div>
 
+{% if stocks or funds %}
+<script>
+/* 右下格位輪播:Steam → 台股持股 → 基金(不存在的卡片跳過),間隔取自持股設定 display.rotate_seconds。 */
+(function () {
+  var cards = ["cardSteam", "cardStocks", "cardFunds"]
+    .map(function (id) { return document.getElementById(id); })
+    .filter(function (el) { return el; });
+  var i = 0, timer = null, INTERVAL_MS = {{ rotate_seconds }} * 1000;
+  function next() {
+    cards[i].hidden = true;
+    i = (i + 1) % cards.length;
+    cards[i].hidden = false;
+    schedule();
+  }
+  function schedule() {  // 手動切換後重新計時,避免剛切過去就被自動輪播帶走
+    clearTimeout(timer);
+    timer = setTimeout(next, INTERVAL_MS);
+  }
+  // 隱藏按鈕:點卡片標題左側 LOGO 立即切到下一張(外觀不變)。
+  cards.forEach(function (card) {
+    var logo = card.querySelector("h2 .ttl .ic");
+    if (logo) logo.addEventListener("click", next);
+  });
+  schedule();
+})();
+</script>
+{% endif %}
 <script>
 /* 番茄鐘:狀態存電子閱讀器本機 localStorage,伺服器維持無狀態。
    一循環 50 分鐘 = 5 段 × 10 分:第 1-4 段工作,第 5 段喝水休息;滿 50 分回待機。

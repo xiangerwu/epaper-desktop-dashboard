@@ -64,6 +64,8 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 | Claude 額度 | `api.anthropic.com/api/oauth/usage` | `~/.claude/.credentials.json`(Claude Code 登入即有) | 不用 |
 | Codex 額度 | `chatgpt.com/backend-api/wham/usage` | `~/.codex/auth.json`(Codex CLI 登入即有) | 不用 |
 | 作息提醒 | 本機時間 + SQLite 上次循環狀態 | 無 | 不用 |
+| 基金 | 集保「基金資訊觀測站」fundclear.com.tw 五日淨值;匯率:臺銀牌告即期買入 | 無;基金在 `/settings/funds` 搜尋加入,存 `data/funds.json` | 同上,共用 `HOLDINGS_TOKEN` |
+| 台股持股 | TWSE MIS `getStockInfo.jsp`(上市/上櫃整批一次查) | 無;持股在 `/settings` 輸入,存 `data/holdings.json` | 要設 `HOLDINGS_TOKEN` 才能存檔 |
 | OpenRouter(預留) | `openrouter.ai/api/v1/credits` | `OPENROUTER_API_KEY` | 程式保留,目前不啟用 |
 
 **天氣金鑰**:到 <https://opendata.cwa.gov.tw/> 免費申請授權碼(`CWA-xxxx`),
@@ -79,7 +81,25 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 
 - 天氣、AQI:每小時 `:00` 整點 cron 抓取。
 - Claude、Codex、作息提醒:每 600 秒更新。
+- 台股持股:每小時 `:00`;設定「只在盤中更新」時只在週一至週五 09:00–14:00 抓,其餘保留上次報價。
+  設定頁存檔後會立刻補抓一次(回填股票名稱)。
+- 基金:每天 08:30、21:00(不分交易日)。境外基金淨值晚 1–2 個營業日屬正常。存檔後立刻補抓一次。
 - 啟動時所有啟用來源先並行抓一次。
+
+### 基金
+
+瀏覽器開 `http://<主機IP>:8000/settings/funds`(或在股票設定頁點「基金」分頁)。
+用名稱搜尋基金 → 按「加入」,系統自動帶入 ISIN 與計價幣別(基金資訊觀測站不支援用 ISIN 搜尋);
+再填顯示名稱(最多 8 字)、單位數、投入成本(台幣總額,選填)。只支援不配息的累積型基金。
+外幣基金以臺灣銀行即期買入匯率換算台幣。卡片左欄是最新一個淨值日的漲跌,右欄是總獲利與市值前 3 檔。
+
+### 台股持股
+
+瀏覽器開 `http://<主機IP>:8000/settings`(只接受本機、區網、Tailscale 來源),
+輸入代號、股數、平均成本(選填),填入 `.env` 的 `HOLDINGS_TOKEN` 後按儲存。
+持股卡片與 Steam 卡片共用右下格位,依「輪播間隔」輪流顯示;沒有持股時只顯示 Steam。
+勾「收盤後只顯示 Steam」則 13:30 後與週末不輪播持股。
+改股數/成本立即反映在卡片上(用最新快取報價重算),不必等下次抓價。
 
 ### 作息提醒
 
@@ -196,6 +216,7 @@ python -m app.device.adb screencap out.png   # 抓裝置畫面回來驗證
 | `MOENV_API_KEY` | — | 環境部資料開放平臺 API key |
 | `AQI_SITE` | `斗六` | 優先選用的 AQI 測站 |
 | `AQI_COUNTY` | `雲林縣` | 找不到指定測站時使用的縣市 |
+| `HOLDINGS_TOKEN` | — | 持股設定頁存檔用的權杖;空 = 不能存檔 |
 | `OPENROUTER_API_KEY` | — | 預留;目前不註冊 OpenRouter 收集器 |
 | `CLAUDE_CODE_OAUTH_TOKEN` | — | 覆寫 Claude token(跨機用) |
 | `CLAUDE_CONFIG_DIR` | `~/.claude` | Claude 憑證目錄 |

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>基金設定</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#E4E5E0;--sheet:#F7F7F4;--ink:#000;--mid:#62645F;--rule:#A9ABA6;--err:#A12020}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Noto Sans TC",system-ui,sans-serif;font-variant-numeric:tabular-nums;line-height:1.6}
+main{max-width:1000px;margin:0 auto;padding:40px 24px}
+nav{display:flex;gap:4px;margin-bottom:24px}
+nav a{padding:6px 16px;border:1.5px solid var(--ink);color:var(--ink);text-decoration:none}
+nav a[aria-current]{background:var(--ink);color:var(--sheet)}
+nav a.home{border-color:transparent;padding-left:0;margin-right:16px}
+h1{font-size:28px;font-weight:700;margin:0 0 4px}
+.lead{color:var(--mid);margin:0 0 24px;font-size:15px}
+h2{font-size:17px;font-weight:500;margin:36px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+.row{display:grid;grid-template-columns:150px minmax(0,1fr) 90px 120px 130px 40px;gap:10px;align-items:start;padding:12px 0;border-bottom:1px solid var(--rule)}
+.head{padding:0 0 6px;font-size:13px;color:var(--mid)}
+input,select{width:100%;font:inherit;font-size:16px;padding:8px 10px;border:1.5px solid var(--ink);background:var(--sheet);border-radius:0}
+input:focus-visible,button:focus-visible,select:focus-visible,nav a:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.bad{border-color:var(--err);border-width:2px}
+.msg{color:var(--err);font-size:13px;margin-top:4px}.msg:empty{display:none}
+.linkbtn{margin-top:6px;padding:4px 10px;font-size:13px}
+.hint{color:var(--mid);font-size:12px;margin-top:4px;overflow-wrap:anywhere}
+button{font:inherit;cursor:pointer;border:1.5px solid var(--ink);background:transparent;padding:8px 16px;border-radius:0}
+button:hover{background:var(--sheet)}
+.del{width:40px;height:40px;padding:0;font-size:20px;line-height:1}
+.add{margin-top:16px}
+.search{display:flex;gap:10px}
+.search input{flex:1}
+#results{margin-top:8px}
+.res{display:grid;grid-template-columns:minmax(0,1fr) 70px 110px 90px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--rule);font-size:15px}
+.res small{color:var(--mid);display:block;font-size:12px}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--rule)}
+.opt small{display:block;color:var(--mid);font-size:13px}
+input[type=checkbox]{width:22px;height:22px;accent-color:#000}
+.opt input[type=password]{width:220px}
+.bar{display:flex;align-items:center;gap:16px;margin-top:28px}
+.save{background:var(--ink);color:var(--sheet);font-weight:500;padding:12px 32px}
+.save:disabled{background:var(--rule);border-color:var(--rule);cursor:not-allowed}
+#status,#sstatus{font-size:14px;color:var(--mid)}
+#preview{max-width:760px}
+.note{font-size:13px;color:var(--mid);margin-top:10px}
+@media (max-width:720px){.row{grid-template-columns:1fr 1fr 40px}.row .hide-sm,.head{display:none}.res{grid-template-columns:1fr 90px}.res .hide-sm{display:none}}
+</style>
+</head>
+<body>
+<main>
+<nav aria-label="設定分頁"><a href="/" class="home">← 回主頁</a><a href="/settings">股票</a><a href="/settings/funds" aria-current="page">基金</a></nav>
+<h1>基金設定</h1>
+<p class="lead">申購或贖回後在這裡更新單位數與投入成本。淨值每天自動更新兩次，卡片顯示最新一天的漲跌與總獲利。</p>
+
+<h2>搜尋基金</h2>
+<div class="search"><input id="q" type="search" placeholder="基金名稱或基金資訊觀測站代碼，例如 安聯台灣科技" aria-label="搜尋基金"><button id="go" type="button">搜尋</button></div>
+<p class="note">資料來自集保「基金資訊觀測站」。它不支援用 ISIN 搜尋，加入後會自動帶入 ISIN 與計價幣別。只支援不配息（累積型）基金。</p>
+<div id="sstatus" role="status"></div>
+<div id="results"></div>
+
+<h2>基金</h2>
+<div class="row head"><span>ISIN 代碼</span><span>顯示名稱</span><span>計價幣別</span><span>單位數</span><span>投入成本（台幣）</span><span></span></div>
+<div id="list"></div>
+<button class="add" id="add" type="button">手動新增一檔</button>
+
+<h2>顯示</h2>
+<label class="opt"><span>在右下角輪播基金卡片<small>與 Steam、股票卡片輪流顯示；輪播間隔沿用股票設定</small></span><input type="checkbox" id="en" checked></label>
+<label class="opt"><span>寫入權杖<small>伺服器 .env 的 HOLDINGS_TOKEN，只存在這台瀏覽器</small></span><input type="password" id="tok" autocomplete="off"></label>
+
+<div class="bar"><button class="save" id="save" type="button">儲存</button><span id="status" role="status"></span></div>
+
+<h2>預覽</h2>
+<div id="preview"></div>
+<p class="note" id="pnote"></p>
+</main>
+<script>
+{% raw %}
+const CCY=["TWD","USD","EUR","JPY","CNY","AUD","ZAR"];
+// 淨值與匯率來自 /api/funds/snapshot:SAMPLE = {isin: [淨值, 前一淨值, "MM/DD"]}
+let SAMPLE={},FX={TWD:1},NOTE={};
+let rows=[];
+const $=id=>document.getElementById(id);
+const fmt=n=>Math.round(n).toLocaleString("zh-TW");
+const money=n=>(n<0?"−":"+")+"NT$ "+fmt(Math.abs(n));
+const sym=p=>p>0?"▲":p<0?"▼":"—";
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const mmdd=d=>d?`${d.slice(5,7)}/${d.slice(8,10)}`:"";
+
+function check(r,i){
+  const e={};
+  if(!/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(r.isin))e.isin="ISIN 是 12 碼，例如 TW000T0101A1";
+  else if(rows.findIndex(x=>x.isin===r.isin)!==i)e.isin="這檔已經在列表裡";
+  if(!r.name.trim())e.name="請輸入顯示名稱";
+  else if(r.name.trim().length>8)e.name="最多 8 個字";
+  if(!CCY.includes(r.ccy))e.ccy="不支援的幣別";
+  if(!/^[0-9]+(\.[0-9]{1,4})?$/.test(r.units)||Number(r.units)<=0)e.units="大於 0，最多 4 位小數";
+  if(r.cost!==""&&(!/^[0-9]+$/.test(r.cost)||Number(r.cost)<=0))e.cost="請輸入正整數";
+  return e;
+}
+
+// render() 只在列數或連結狀態改變時重建輸入框;打字時只呼叫 refresh() 就地更新錯誤訊息。
+// 重建會讓數字欄游標跳回開頭(type=number 無法還原游標位置)。
+const FIELDS=["isin","name","ccy","units","cost"];
+function render(){
+  $("list").innerHTML=rows.map((r,i)=>{
+    const m=k=>`<div class="msg" data-m="${k}"></div>`;
+    return `<div class="row" data-row="${i}">
+      <div><input value="${esc(r.isin)}" data-i="${i}" data-k="isin" aria-label="ISIN" maxlength="12">${m("isin")}<div class="hint" data-hint></div>${r.code?"":`<button type="button" class="linkbtn" data-link="${i}">搜尋連結</button>`}</div>
+      <div><input value="${esc(r.name)}" data-i="${i}" data-k="name" aria-label="顯示名稱" maxlength="12">${m("name")}</div>
+      <div class="hide-sm"><select data-i="${i}" data-k="ccy" aria-label="計價幣別">${CCY.map(c=>`<option ${c===r.ccy?'selected':''}>${c}</option>`).join("")}</select>${m("ccy")}</div>
+      <div><input type="number" value="${esc(r.units)}" data-i="${i}" data-k="units" aria-label="單位數" step="0.0001" min="0">${m("units")}</div>
+      <div class="hide-sm"><input type="number" value="${esc(r.cost)}" data-i="${i}" data-k="cost" aria-label="投入成本" placeholder="選填" min="0" step="1">${m("cost")}</div>
+      <button class="del" type="button" data-del="${i}" aria-label="刪除 ${esc(r.name)}">×</button></div>`}).join("");
+  refresh();
+}
+function refresh(){
+  rows.forEach((r,i)=>{
+    const el=$("list").querySelector(`[data-row="${i}"]`);if(!el)return;
+    const e=check(r,i);
+    for(const k of FIELDS){
+      el.querySelector(`[data-k="${k}"]`).classList.toggle("bad",!!e[k]);
+      el.querySelector(`[data-m="${k}"]`).textContent=e[k]||"";
+    }
+    el.querySelector("[data-hint]").textContent=r.code
+      ?`FundClear ${r.code}${NOTE[r.isin]?`・${NOTE[r.isin]}`:""}`
+      :"未連結基金資訊觀測站，抓不到淨值";
+  });
+  update();
+}
+function update(){
+  $("save").disabled=!(rows.length&&rows.every((r,i)=>!Object.keys(check(r,i)).length));
+  if(!rows.length)$("status").textContent="至少需要一檔基金";
+  preview();
+}
+function preview(){
+  const it=rows.filter((r,i)=>!Object.keys(check(r,i)).length&&SAMPLE[r.isin]&&FX[r.ccy]).map(r=>{const[nav,prev,d]=SAMPLE[r.isin],u=Number(r.units),fx=FX[r.ccy],v=nav*u*fx,pv=prev*u*fx,c=r.cost===""?null:Number(r.cost);return{name:r.name.trim(),v,pv,c,d,day:(nav-prev)/prev*100,ret:c?(v-c)/c*100:null}});
+  const miss=rows.filter(r=>r.isin&&!(SAMPLE[r.isin]&&FX[r.ccy])).length;
+  $("pnote").textContent=`${FX.USD?`預覽使用最新淨值與臺銀即期買入匯率（USD ${FX.USD}）。`:"預覽使用最新淨值。"}${miss?`有 ${miss} 檔沒有淨值，儲存後才會抓取。`:''}`;
+  const T=(x,y,s,t,o="")=>`<text x="${x}" y="${y}" font-size="${s}" ${o}>${esc(t)}</text>`;
+  const dash=y=>`<line x1="740" y1="${y}" x2="1206" y2="${y}" stroke="#999" stroke-width="2" stroke-dasharray="8 8"/>`;
+  const pct=p=>p==null?"--":`${sym(p)}${Math.abs(p).toFixed(2)}%`;
+  let body,stamp="預覽";
+  if(!it.length)body=T(625,340,36,"輸入基金後會顯示在這裡",'text-anchor="middle" fill="#444"');
+  else{
+    const V=it.reduce((s,x)=>s+x.v,0),PV=it.reduce((s,x)=>s+x.pv,0),day=V-PV,dp=day/PV*100;
+    const wc=it.filter(x=>x.c),C=wc.reduce((s,x)=>s+x.c,0),U=wc.reduce((s,x)=>s+x.v,0)-C;
+    const dates=[...new Set(it.map(x=>x.d))].sort();stamp=`淨值日 ${dates[dates.length-1]}`;
+    body=T(40,150,30,"最新漲跌",'fill="#444"')+T(40,290,150,pct(dp),'font-weight="900"')+T(40,370,48,money(day),'font-weight="500"')+T(40,450,28,`總市值 ${fmt(V)}`,'fill="#444"')+(dates.length>1?T(40,495,24,`最早淨值 ${dates[0]}`,'fill="#444"'):"")+`<line x1="700" y1="120" x2="700" y2="570" stroke="#bbb" stroke-width="3"/>`;
+    const list=[...it].sort((a,b)=>b.v-a.v).slice(0,3);
+    const R=[["總獲利",C?money(U):"--",C?`${pct(U/C*100)}${wc.length<it.length?"・部分未填成本":""}`:"未填投入成本"]].concat(list.map(x=>[x.name,pct(x.day),`累計 ${pct(x.ret)}`]));
+    R.forEach(([k,v,sub],i)=>{const y=170+i*110;body+=T(740,y,i?34:28,k,i?'font-weight="900"':'fill="#444"')+T(1206,y,40,v,'font-weight="900" text-anchor="end"')+T(1206,y+38,24,sub,'fill="#444" text-anchor="end"')+(i<R.length-1?dash(y+62):"")});
+  }
+  $("preview").innerHTML=`<svg viewBox="0 0 1250 610" width="100%" role="img" aria-label="基金卡片預覽" style="font-family:'Noto Sans TC',sans-serif">
+  <rect x="4" y="4" width="1242" height="602" rx="30" fill="#fff" stroke="#000" stroke-width="5"/>
+  <g transform="translate(40,58)"><circle cx="22" r="22" fill="#000"/><path d="M22,-12 A12,12 0 1,1 10,0 L22,0 Z" fill="#fff"/></g>
+  <g fill="#000"><text x="100" y="72" font-size="40" font-weight="900">基金</text><text x="1206" y="72" font-size="30" fill="#444" text-anchor="end">${esc(stamp)}</text>${body}</g></svg>`;
+}
+
+// ---- 搜尋基金資訊觀測站 → 加入 ----
+let found=[],linking=null;  // linking = 正在為哪一列搜尋連結(null = 新增)
+async function doSearch(){
+  const q=$("q").value.trim();
+  if(q.length<2){$("sstatus").textContent="請輸入至少 2 個字";return}
+  $("sstatus").textContent="搜尋中…";$("results").innerHTML="";
+  try{
+    const r=await fetch("/api/funds/search?q="+encodeURIComponent(q));
+    const j=await r.json();
+    if(!r.ok){$("sstatus").textContent=j.error||"搜尋失敗";return}
+    found=j;
+    $("sstatus").textContent=j.length?`找到 ${j.length} 檔（最多顯示 20 檔）`:"查無符合的基金";
+    $("results").innerHTML=j.map((x,i)=>{
+      const div=x.dividend&&x.dividend!=="-"&&!x.dividend.includes("不配息");
+      const ok=CCY.includes(x.currency)&&!div;
+      return `<div class="res"><span>${esc(x.name)}<small>${x.site==="onshore"?"境內":"境外"}・${esc(x.code)}${div?`・${esc(x.dividend)}（配息型不支援）`:""}</small></span>
+        <span class="hide-sm">${esc(x.currency)}</span><span class="hide-sm">${x.nav??"—"}<small>${esc(x.nav_date)}</small></span>
+        <button type="button" data-pick="${i}" ${ok?"":"disabled"} title="${ok?"":"不支援的幣別或配息型基金"}">${linking===null?"加入":"連結到此列"}</button></div>`}).join("");
+  }catch(e){$("sstatus").textContent="搜尋失敗：連不到伺服器"}
+}
+$("go").addEventListener("click",doSearch);
+$("q").addEventListener("keydown",e=>{if(e.key==="Enter")doSearch()});
+$("results").addEventListener("click",async e=>{
+  const i=e.target.dataset.pick;if(i===undefined)return;
+  const x=found[i];e.target.disabled=true;$("sstatus").textContent="查詢 ISIN…";
+  try{
+    const r=await fetch(`/api/funds/lookup?site=${x.site}&code=${encodeURIComponent(x.code)}`);
+    const j=await r.json();
+    if(!r.ok){$("sstatus").textContent=j.error||"查詢失敗";e.target.disabled=false;return}
+    if(rows.some((r,k)=>r.isin===j.isin&&k!==linking)){$("sstatus").textContent="這檔已經在列表裡";return}
+    if(linking!==null&&rows[linking]){
+      const r=rows[linking],changed=r.isin&&r.isin!==j.isin;
+      Object.assign(r,{isin:j.isin,ccy:j.currency,code:j.code,site:j.site});
+      $("sstatus").textContent=`已連結 ${x.name}${changed?`（ISIN 已更正為 ${j.isin}）`:""}，記得按儲存`;
+      linking=null;$("results").innerHTML="";
+    }else{
+      rows.push({isin:j.isin,name:x.name.replace(/基金.*$/,"").slice(0,8),ccy:j.currency,units:"",cost:"",code:j.code,site:j.site});
+      $("sstatus").textContent=`已加入 ${x.name}，請確認顯示名稱並填入單位數`;
+    }
+    $("status").textContent="有尚未儲存的變更";
+    render();
+  }catch(err){$("sstatus").textContent="查詢失敗：連不到伺服器";e.target.disabled=false}
+});
+
+$("list").addEventListener("input",e=>{
+  const i=e.target.dataset.i;if(i===undefined)return;
+  const k=e.target.dataset.k;let v=e.target.value;
+  if(k==="isin"){v=v.toUpperCase().trim();if(v!==e.target.value)e.target.value=v}
+  rows[i][k]=v;$("status").textContent="有尚未儲存的變更";
+  refresh();
+});
+$("list").addEventListener("click",e=>{
+  const d=e.target.dataset.del;
+  if(d!==undefined){rows.splice(d,1);linking=null;render();$("status").textContent="有尚未儲存的變更";return}
+  const l=e.target.dataset.link;
+  if(l!==undefined){linking=Number(l);$("q").value=rows[linking].name.trim();$("q").scrollIntoView({block:"center"});$("q").focus();
+    if($("q").value.length>=2)doSearch();else $("sstatus").textContent="輸入基金名稱後按搜尋，再按「連結到此列」";}
+});
+$("add").addEventListener("click",()=>{rows.push({isin:"",name:"",ccy:"TWD",units:"",cost:"",code:null,site:null});render();document.querySelector(`[data-i="${rows.length-1}"][data-k="isin"]`).focus()});
+$("en").addEventListener("input",()=>$("status").textContent="有尚未儲存的變更");
+$("save").addEventListener("click",async()=>{
+  const data={funds:rows.map(r=>({isin:r.isin,name:r.name.trim(),currency:r.ccy,units:Number(r.units),cost_twd:r.cost===""?null:Number(r.cost),fundclear_code:r.code||null,site:r.site||null})),display:{enabled:$("en").checked}};
+  const tok=$("tok").value;
+  try{localStorage.setItem("holdings_token",tok)}catch(e){}
+  $("save").disabled=true;$("status").textContent="儲存中…";
+  try{
+    const r=await fetch("/api/funds",{method:"POST",headers:{"Content-Type":"application/json","X-Holdings-Token":tok},body:JSON.stringify(data)});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){$("status").textContent=j.errors?"儲存失敗："+Object.values(j.errors).join("；"):"儲存失敗："+(j.error||r.status);return}
+    const n=new Date();$("status").textContent=`已儲存 ${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}，正在抓取淨值…`;
+    // 後端存檔後背景抓淨值,每檔間隔 5 秒;分批重抓快照
+    const wait=(rows.length+1)*5500;
+    setTimeout(loadSnapshot,10000);setTimeout(loadSnapshot,wait);
+  }catch(e){$("status").textContent="儲存失敗：連不到伺服器"}
+  finally{update()}
+});
+async function loadSnapshot(){
+  try{
+    const s=await (await fetch("/api/funds/snapshot",{cache:"no-store"})).json();
+    SAMPLE={};NOTE={};FX={TWD:1};
+    for(const c of CCY)if(typeof (s.fx||{})[c]==="number")FX[c]=s.fx[c];
+    for(const q of s.items||[])if(q.nav&&q.prev_nav)SAMPLE[q.isin]=[q.nav,q.prev_nav,mmdd(q.nav_date)];
+    for(const q of s.items||[])if(q.nav)NOTE[q.isin]=`淨值 ${q.nav}（${mmdd(q.nav_date)}）`;
+    for(const e of s.errors||[])if(e.isin)NOTE[e.isin]=e.reason;
+    refresh();
+  }catch(e){}
+}
+(async()=>{
+  try{$("tok").value=localStorage.getItem("holdings_token")||""}catch(e){}
+  try{
+    const h=await (await fetch("/api/funds",{cache:"no-store"})).json();
+    rows=(h.funds||[]).map(f=>({isin:f.isin,name:f.name,ccy:f.currency,units:String(f.units),cost:f.cost_twd==null?"":String(f.cost_twd),code:f.fundclear_code||null,site:f.site||null}));
+    $("en").checked=(h.display||{}).enabled!==false;
+  }catch(e){$("status").textContent="讀取設定失敗"}
+  render();
+  await loadSnapshot();
+})();
+{% endraw %}
+</script>
+</body>
+</html>

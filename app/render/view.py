@@ -5,9 +5,10 @@
 """
 from __future__ import annotations
 
+import random
 from datetime import datetime
 
-from .. import cache
+from .. import cache, funds as funds_mod, holdings
 
 
 def _age_label(age_seconds: int | None) -> str:
@@ -90,6 +91,39 @@ def build() -> dict:
         "age": _age_label(steam_c["age_seconds"] if steam_c else None),
     }
 
+    # 台股持股:與 Steam 共用右下格位輪播。沒設定持股 → 不顯示;
+    # 收盤後且 hide_after_hours → 只顯示 Steam。
+    config = holdings.load()
+    stocks_c = cache.get("stocks")
+    stocks = holdings.summarize(
+        config, stocks_c["payload"] if stocks_c else None,
+        age_seconds=stocks_c["age_seconds"] if stocks_c else None,
+    )
+    disp = config["display"]
+    if stocks and disp["hide_after_hours"] and not holdings.in_trading_session():
+        stocks = None
+    if stocks:
+        # 農民曆宜忌:只在快取是今天的資料時顯示,不拿昨天的充當今天
+        alm_c = cache.get("almanac")
+        alm = alm_c["payload"] if alm_c else None
+        today = datetime.now(holdings.TPE).strftime("%Y-%m-%d")
+        stocks["almanac"] = alm if alm and alm.get("date") == today else None
+
+    # 基金:接在股票後輪播;display.enabled = false 時跳過。
+    funds_cfg = funds_mod.load()
+    funds_c = cache.get("funds")
+    funds = (funds_mod.summarize(funds_cfg, funds_c["payload"] if funds_c else None)
+             if funds_cfg["display"]["enabled"] else None)
+    if funds:
+        # 今日電網:每次渲染(頁面自動刷新)隨機挑一個發電類型
+        power_c = cache.get("power")
+        p = power_c["payload"] if power_c else None
+        if p and p.get("types"):
+            t = random.choice(p["types"])
+            today = datetime.now(holdings.TPE).strftime("%Y-%m-%d")
+            stamp = p["time"] if p["date"] == today else f'{p["date"][5:7]}/{p["date"][8:10]} {p["time"]}'
+            funds["power"] = {**t, "stamp": stamp}
+
     return {
         "generated_at": now.strftime("%Y/%m/%d  %H:%M"),
         "weekday": "一二三四五六日"[now.weekday()],
@@ -100,4 +134,7 @@ def build() -> dict:
         "ai_columns": ai_columns,
         "routine": routine,
         "steam": steam,
+        "stocks": stocks,
+        "funds": funds,
+        "rotate_seconds": disp["rotate_seconds"],
     }

@@ -5,8 +5,12 @@
 from .air import AirQualityCollector
 from .anthropic_usage import AnthropicUsageCollector
 from .codex_usage import CodexUsageCollector
+from .funds import FundsCollector
+from .power import PowerCollector
+from .almanac import AlmanacCollector
 from .routine import RoutineCollector
 from .steam import SteamCollector
+from .stocks import StocksCollector
 from .weather import WeatherCollector
 
 COLLECTORS = [
@@ -16,6 +20,10 @@ COLLECTORS = [
     CodexUsageCollector(),
     RoutineCollector(),
     SteamCollector(),
+    StocksCollector(),
+    FundsCollector(),
+    AlmanacCollector(),
+    PowerCollector(),
 ]
 
 # OpenRouter 程式與設定保留,等看板需要顯示時再註冊。

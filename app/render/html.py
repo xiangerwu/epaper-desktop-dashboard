@@ -42,3 +42,13 @@ def render_app_preview(share_url: str, ip: str, port: int) -> str:
     return _env.get_template("app_preview.html.j2").render(
         share_url=share_url, ip=ip, port=port,
     )
+
+
+def render_settings() -> str:
+    """持股設定頁(資料由頁面 JS 向 /api/holdings、/api/snapshot 取)。"""
+    return _env.get_template("settings.html.j2").render()
+
+
+def render_funds_settings() -> str:
+    """基金設定頁(資料由頁面 JS 向 /api/funds、/api/funds/snapshot 取)。"""
+    return _env.get_template("funds.html.j2").render()

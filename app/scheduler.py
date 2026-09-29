@@ -27,7 +27,9 @@ async def _adb_refresh() -> None:
 def start() -> None:
     for c in COLLECTORS:
         if c.cron_minute is not None:
-            _sched.add_job(c.run, "cron", minute=c.cron_minute, id=c.source)
+            hour = getattr(c, "cron_hour", None)
+            _sched.add_job(c.run, "cron", minute=c.cron_minute, id=c.source,
+                           **({"hour": hour} if hour is not None else {}))
         else:
             # lifespan 已首抓；interval 預設會從現在起算下一次，不可傳 None（會永久暫停）。
             _sched.add_job(

@@ -16,6 +16,8 @@ class Collector(abc.ABC):
     interval_seconds: int = 900
     #: 非 None 時改用 cron 排程,對齊時鐘分鐘。可用單值(0)或表達式("0,30")
     cron_minute: int | str | None = None
+    #: 搭配 cron_minute 限定小時(例 "8,21");None = 每小時
+    cron_hour: int | str | None = None
 
     @abc.abstractmethod
     async def fetch(self) -> dict:

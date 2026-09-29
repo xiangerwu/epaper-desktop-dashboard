@@ -54,6 +54,10 @@ class Settings:
     steam_api_key: str = os.getenv("STEAM_API_KEY", "")
     steam_id: str = os.getenv("STEAM_ID", "")
 
+    # --- 台股持股 ---
+    # 設定頁 POST /api/holdings 需帶 X-Holdings-Token;未設定時拒絕寫入。
+    holdings_token: str = os.getenv("HOLDINGS_TOKEN", "")
+
     # --- AI 額度 ---
     # Claude 走 ~/.claude/.credentials.json 的 oauth token;Codex 走 ~/.codex/auth.json。
     # 兩者不吃 API key,見對應 collector。OpenRouter 才需自填金鑰:

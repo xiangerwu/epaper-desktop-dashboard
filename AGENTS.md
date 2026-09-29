@@ -29,14 +29,16 @@ app/main.py (FastAPI):  GET /  即時渲染   ·   GET /health   ·   app/device
 | `app/net.py` | 共用 httpx client。**放寬 Py3.14 的 `VERIFY_X509_STRICT`**,否則 CWA 憑證會被擋 |
 | `app/cache.py` | SQLite 存 `{source: (json_payload, updated_at)}`;`put/get`,`get` 附 `age_seconds` |
 | `app/collectors/base.py` | `Collector` ABC:`source`、`interval_seconds`、`fetch()`;`run()` 吞例外保留舊快取 |
-| `app/collectors/*.py` | 各來源:weather / air / anthropic_usage / codex_usage / routine;openrouter 保留 |
+| `app/collectors/*.py` | 各來源:weather / air / anthropic_usage / codex_usage / routine / steam / stocks;openrouter 保留 |
+| `app/holdings.py` | 持股設定 `data/holdings.json` 存讀(原子寫入)、驗證、盤中判斷、卡片總覽計算 |
+| `app/funds.py` | 基金設定 `data/funds.json` 存讀、驗證、卡片總覽計算(淨值 × 單位數 × 臺銀即期買入) |
 | `app/collectors/__init__.py` | `COLLECTORS` 清單;OpenRouter 目前不註冊 |
 | `app/render/view.py` | 讀快取組 view-model(天氣、AQI、AI 額度、Steam、左下作息卡) |
 | `app/render/html.py` | view-model → Jinja2 → HTML 字串 |
 | `app/render/templates/dashboard.html.j2` | e-ink 版面(vmin 相對單位;左欄 天氣＋作息卡、右欄 AI 額度＋Steam) |
 | `app/scheduler.py` | APScheduler:天氣/AQI 整點 cron;Claude/Codex/作息 600s interval +(選)ADB 刷新 job |
 | `app/device/adb.py` | ADB 封裝:connect/open/refresh/wake/screencap;CLI 入口 |
-| `app/main.py` | FastAPI app + lifespan(啟動先抓一輪)+ 備用埠選擇 |
+| `app/main.py` | FastAPI app + lifespan(啟動先抓一輪)+ 備用埠選擇;`/settings`、`/api/holdings`、`/api/snapshot`、`/settings/funds`、`/api/funds*`(僅內網/Tailscale) |
 
 ## 慣例
 
@@ -52,6 +54,19 @@ app/main.py (FastAPI):  GET /  即時渲染   ·   GET /health   ·   app/device
   第 1–3 次更新顯示專注倒數,第 4 次提醒喝水伸展 5 分鐘,下一次回第 1 次。
   `/refresh` 會跑 collectors,所以手動刷新也會推進;單純 GET `/` 或 ADB 重載不會。
 - **e-ink 版面**:純黑白高對比、粗線、大字、無漸層;尺寸用 `vw`(裝置 2x → CSS 寬約 702px)。
+- **持股卡片**:卡片數字 = 目前 `holdings.json` 股數 × 快取最新報價,於渲染時算(`holdings.summarize`);
+  collector 只負責報價。右下格位 Steam ↔ 持股輪播是頁面 JS,間隔取 `display.rotate_seconds`。
+  卡片沿用 Steam 卡片的 class(`.card.steam`、`.steam-cols`、`.steam-stat`),別另寫一套框線/虛線。
+- **基金卡片**:同上模式,輪播順序 Steam → 股票 → 基金(不存在的卡片跳過)。排程 `cron_hour="8,21"`、
+  `cron_minute=30`(base 支援 `cron_hour`)。設定頁用 FundClear 搜尋加入,存 `fundclear_code`+`site`+`isin`。
+- **農民曆宜忌**:`collectors/almanac.py` 爬好日網(goodaytw.com)**首頁**的今日宜忌,顯示在股票卡左欄。
+  robots.txt 禁止日期頁 `/20*-*-*`,只能抓首頁;一天 00:05/06:05/12:05(後兩次是重試)。頁面日期 ≠ 今天
+  就不採用,看板也只顯示 date == 今天的資料。解析前先移除 `<style>`(MUI SSR 會把 style 插在標籤與內容之間),
+  只取日期標頭後第一組(頁面後段有各時辰宜忌)。
+- **今日電網**:`collectors/power.py` 每 10 分鐘抓台電開放資料(data.gov.tw/dataset/8931)各類型「小計」列,
+  基金卡左欄每次渲染隨機顯示一種(佔全台 %、MW、資料時間)。開放資料實測會停更數小時,所以一定要顯示時間。
+  不要算「發電量/裝置容量」:小計列兩者統計範圍不同(燃氣 106%、汽電共生 294%)。台電官網 genary.json 會擋爬蟲。
+- **輪播隱藏按鈕**:點右下卡片標題左側 LOGO(`h2 .ttl .ic`)立即切到下一張並重新計時,外觀刻意不變。
 - **秘密**:只進 `.env`(已 gitignore);`./adb/`(Windows 二進位)與 `data/` 也已忽略。
 
 ## 地雷(踩過的真 bug)
@@ -73,6 +88,22 @@ app/main.py (FastAPI):  GET /  即時渲染   ·   GET /health   ·   app/device
    循環更新、e-ink 殘影疊出破版」。已改成 `dashboard.html.j2` 內的 JS:到點先
    `fetch("/health")` 探活,成功才 `location.reload()`,失敗每 30 秒重試並留在目前完整頁面上。
    別再改回單純 meta refresh。
+
+9. **TWSE MIS 的 `z`(成交價)常是 `"-"`**:13:25–13:30 集合競價、或最近一筆沒成交時。
+   `collectors/stocks.py` 依序退回 `pz` → `trade.z` → 買賣一檔中價。代號前綴不知道上市或上櫃,
+   每檔同時送 `tse_` 與 `otc_`,無效的會回 `c` 為空字串的空殼,要略過。
+   TWSE OpenAPI `STOCK_DAY_ALL` 實測落後數個交易日,不適合當「收盤校正」。
+10. **FundClear 不接受 ISIN 查詢**:淨值 API(`/api/{onshore|offshore}/nav-profit/query-five-dates`)
+    只認它自己的基金代碼(境內如 `18480065`、境外如 `BLKTEAMA`)當 `searchName`。`oneDate` 是最新
+    (= `dateList[-1]`),值可能帶千分位逗號或是 `-`。ISIN 只能從 `query-details` 反查。
+    這是無公開文件的前端 API,改版時先看 `collectors/funds.py` 的註解重新驗證。
+11. **臺銀匯率 CSV 會擋預設 UA**:不帶瀏覽器 User-Agent + `Accept-Language` 時回機器人驗證頁
+    (HTTP 200、HTML)。collector 以 content-type 判斷,非 CSV 就當失敗、沿用上次匯率。
+12. **設定頁打字時別重建輸入框**:`settings.html.j2` / `funds.html.j2` 的 `render()` 只在列數改變時
+    重建 DOM,打字走 `refresh()` 就地更新錯誤訊息。`type=number` 讀不到也設不回游標位置,
+    整列 innerHTML 重建會讓游標跳回開頭、焦點被搶回(使用者回報過)。
+13. **dashboard 模板改 CSS 時小心 `</style>`**:少了結尾標籤,整個 body 會被當成樣式文字,
+    畫面全白但 HTML 看起來正常。改完用 headless 截圖確認。
 
 ## 不要做
 
@@ -105,7 +136,7 @@ HyRead Gaze Note Plus:`model K08P`、`rk3566_eink`、Android 11 / SDK 30、
 
 ## 現況與待辦
 
-已完成:天氣(CWA)、AQI(MOENV)、Claude 額度、Codex 額度、本機作息提醒、live HTML、
+已完成:天氣(CWA)、AQI(MOENV)、Claude 額度、Codex 額度、本機作息提醒、台股持股卡片、基金卡片(與 Steam 輪播)、live HTML、
 Fully Kiosk 滿版(實機驗證)、ADB 控制、備用埠、分來源排程。
 未完成:脫離 USB(改用主機區網 IP)、Fully 鎖定與開機自啟、e-ink full-refresh 廣播、
 跨機 token 同步、OpenRouter(待金鑰)、預留的 Notion / 一般 DB connector。

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>持股設定</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#E4E5E0;--sheet:#F7F7F4;--ink:#000;--mid:#62645F;--rule:#A9ABA6;--err:#A12020}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Noto Sans TC",system-ui,sans-serif;font-variant-numeric:tabular-nums;line-height:1.6}
+main{max-width:920px;margin:0 auto;padding:40px 24px}
+nav{display:flex;gap:4px;margin-bottom:24px}
+nav a{padding:6px 16px;border:1.5px solid var(--ink);color:var(--ink);text-decoration:none}
+nav a[aria-current]{background:var(--ink);color:var(--sheet)}
+nav a.home{border-color:transparent;padding-left:0;margin-right:16px}
+nav a:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+h1{font-size:28px;font-weight:700;margin:0 0 4px}
+.lead{color:var(--mid);margin:0 0 24px;font-size:15px}
+h2{font-size:17px;font-weight:500;margin:36px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+.row{display:grid;grid-template-columns:110px minmax(0,1fr) 120px 130px 40px;gap:12px;align-items:start;padding:12px 0;border-bottom:1px solid var(--rule)}
+.head{padding:0 0 6px;font-size:13px;color:var(--mid)}
+input[type=text],input[type=number]{width:100%;font:inherit;font-size:16px;padding:8px 10px;border:1.5px solid var(--ink);background:var(--sheet);border-radius:0}
+input:focus-visible,button:focus-visible,select:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+input.bad{border-color:var(--err);border-width:2px}
+.name{padding:9px 0;font-size:15px}.name.none{color:var(--mid)}
+.msg{color:var(--err);font-size:13px;margin-top:4px}.msg:empty{display:none}
+.hint{color:var(--mid);font-size:12px;margin-top:4px}
+button{font:inherit;cursor:pointer;border:1.5px solid var(--ink);background:transparent;padding:8px 16px;border-radius:0}
+button:hover{background:var(--sheet)}
+.del{width:40px;height:40px;padding:0;font-size:20px;line-height:1}
+.add{margin-top:16px}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--rule)}
+.opt small{display:block;color:var(--mid);font-size:13px}
+.opt input[type=number]{width:100px}
+input[type=checkbox]{width:22px;height:22px;accent-color:#000}
+.bar{display:flex;align-items:center;gap:16px;margin-top:28px}
+.save{background:var(--ink);color:var(--sheet);font-weight:500;padding:12px 32px}
+.save:hover{background:#333}.save:disabled{background:var(--rule);border-color:var(--rule);cursor:not-allowed}
+#status{font-size:14px;color:var(--mid)}
+#preview{background:#fff;padding:0;max-width:760px}
+.note{font-size:13px;color:var(--mid);margin-top:10px}
+@media (max-width:640px){.row{grid-template-columns:90px minmax(0,1fr) minmax(0,1fr) 40px}.row .name,.head span:nth-child(2){display:none}}
+</style>
+</head>
+<body>
+<main>
+<nav aria-label="設定分頁"><a href="/" class="home">← 回主頁</a><a href="/settings" aria-current="page">股票</a><a href="/settings/funds">基金</a></nav>
+<h1>持股設定</h1>
+<p class="lead">買賣後在這裡更新股數與平均成本。股價每小時自動更新，不需要手動輸入。</p>
+
+<h2>持股</h2>
+<div class="row head"><span>代號</span><span>名稱</span><span>股數</span><span>平均成本</span><span></span></div>
+<div id="list"></div>
+<button class="add" id="add" type="button">新增一檔</button>
+
+<h2>顯示</h2>
+<label class="opt"><span>只在盤中更新<small>週一至週五 09:00–14:00，其餘時間顯示最後收盤</small></span><input type="checkbox" id="mh" checked></label>
+<label class="opt"><span>收盤後只顯示 Steam<small>非交易時段不輪播持股卡片</small></span><input type="checkbox" id="ha"></label>
+<label class="opt"><span>輪播間隔（秒）<small>Steam、股票、基金卡片輪流顯示的時間，15–600 秒</small></span><span><input type="number" id="rs" value="60" min="15" max="600" step="1"><span class="msg" id="rsmsg"></span></span></label>
+
+<label class="opt"><span>寫入權杖<small>伺服器 .env 的 HOLDINGS_TOKEN，只存在這台瀏覽器</small></span><input type="password" id="tok" autocomplete="off" style="width:220px;font:inherit;font-size:16px;padding:8px 10px;border:1.5px solid var(--ink);background:var(--sheet);border-radius:0"></label>
+
+<div class="bar"><button class="save" id="save" type="button">儲存</button><span id="status" role="status"></span></div>
+
+<h2>預覽</h2>
+<div id="preview"></div>
+<p class="note" id="pnote"></p>
+</main>
+
+<script>
+// 報價來自 /api/snapshot:{code: [名稱, 現價, 漲跌%]};預覽與名稱欄共用。
+let SAMPLE={},quoteDate="",NOQUOTE=new Set();
+let rows=[{code:"",shares:"",cost:""}];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=n=>Math.round(n).toLocaleString("zh-TW");
+const money=n=>(n<0?"−":"+")+"NT$ "+fmt(Math.abs(n));
+const sym=p=>p>0?"▲":p<0?"▼":"—";
+
+function check(r,i){
+  const e={};
+  if(!/^[0-9]{4,6}[A-Z]?$/.test(r.code))e.code="代號是 4–6 位數字，主動式 ETF 結尾加 A";
+  else if(rows.findIndex(x=>x.code===r.code)!==i)e.code="這檔已經在列表裡";
+  const n=Number(r.shares);
+  if(!/^[0-9]+$/.test(r.shares)||n<=0)e.shares="請輸入大於 0 的整數";
+  else if(n>1e7)e.shares="股數超過上限";
+  if(r.cost!==""&&(!/^[0-9]+(\.[0-9]{1,4})?$/.test(r.cost)||Number(r.cost)<=0))e.cost="請輸入大於 0 的數字，最多 4 位小數";
+  return e;
+}
+const rsBad=()=>{const v=$("rs").value;return !/^[0-9]+$/.test(v)||v<15||v>600};
+
+// render() 只在列數改變(新增/刪除/載入)時重建輸入框;打字時只呼叫 refresh() 就地更新
+// 錯誤訊息與名稱。重建會讓數字欄游標跳回開頭(type=number 無法還原游標位置)。
+function render(){
+  $("list").innerHTML=rows.map((r,i)=>`<div class="row" data-row="${i}">
+      <div><input type="text" value="${esc(r.code)}" data-i="${i}" data-k="code" aria-label="代號" maxlength="7"><div class="msg" data-m="code"></div></div>
+      <div class="name" data-name></div>
+      <div><input type="number" value="${esc(r.shares)}" data-i="${i}" data-k="shares" aria-label="股數" min="1" step="1"><div class="msg" data-m="shares"></div></div>
+      <div><input type="number" value="${esc(r.cost)}" data-i="${i}" data-k="cost" aria-label="平均成本" min="0" step="0.01" placeholder="選填"><div class="msg" data-m="cost"></div></div>
+      <button class="del" type="button" data-del="${i}" aria-label="刪除 ${esc(r.code)}">×</button>
+    </div>`).join("");
+  refresh();
+}
+
+function refresh(){
+  rows.forEach((r,i)=>{
+    const el=$("list").querySelector(`[data-row="${i}"]`);if(!el)return;
+    const e=check(r,i),info=SAMPLE[r.code];
+    for(const k of ["code","shares","cost"]){
+      el.querySelector(`[data-k="${k}"]`).classList.toggle("bad",!!e[k]);
+      el.querySelector(`[data-m="${k}"]`).textContent=e[k]||"";
+    }
+    const nm=el.querySelector("[data-name]");
+    nm.classList.toggle("none",!info);
+    nm.textContent=info?info[0]:(NOQUOTE.has(r.code)?"查無報價，請確認代號":(r.code?"儲存後由系統查詢":""));
+  });
+  update();
+}
+
+function update(){
+  const ok=rows.length>0&&rows.every((r,i)=>!Object.keys(check(r,i)).length)&&!rsBad();
+  $("save").disabled=!ok;
+  $("rsmsg").textContent=rsBad()?"請輸入 15–600 的整數":"";
+  if(!rows.length)$("status").textContent="至少需要一檔持股";
+  preview();
+}
+
+function preview(){
+  const it=rows.filter((r,i)=>!Object.keys(check(r,i)).length&&SAMPLE[r.code]).map(r=>{
+    const[name,p,c]=SAMPLE[r.code],sh=Number(r.shares),prev=p/(1+c/100);
+    return{name,p,c,v:p*sh,pv:prev*sh,cost:r.cost===""?null:Number(r.cost)*sh}});
+  const miss=rows.filter(r=>r.code&&!SAMPLE[r.code]).length;
+  $("pnote").textContent=`${quoteDate?`預覽使用 ${quoteDate} 的報價。`:"尚無報價。"}${miss?`有 ${miss} 檔沒有預覽報價，儲存後才會計入。`:''}`;
+  const T=(x,y,s,t,o="")=>`<text x="${x}" y="${y}" font-size="${s}" ${o}>${t}</text>`;
+  const dash=y=>`<line x1="740" y1="${y}" x2="1206" y2="${y}" stroke="#999" stroke-width="2" stroke-dasharray="8 8"/>`;
+  let body;
+  if(!it.length){body=T(625,340,36,"輸入持股後會顯示在這裡",'text-anchor="middle" fill="#444"')}
+  else{
+    const V=it.reduce((s,x)=>s+x.v,0),PV=it.reduce((s,x)=>s+x.pv,0),day=V-PV,dp=day/PV*100;
+    const withCost=it.filter(x=>x.cost!=null),C=withCost.reduce((s,x)=>s+x.cost,0),U=withCost.reduce((s,x)=>s+x.v,0)-C;
+    const sorted=[...it].sort((a,b)=>a.c-b.c),lo=sorted[0],hi=sorted[sorted.length-1];
+    const down=it.filter(x=>x.c<0).length,up=it.filter(x=>x.c>0).length;
+    const nm=s=>s.length>8?s.slice(0,7)+"…":s;
+    const rowsR=[["總市值",fmt(V),""],["未實現損益",withCost.length?money(U):"--",withCost.length?`${U>=0?"+":"−"}${Math.abs(U/C*100).toFixed(2)}%${withCost.length<it.length?"・部分未填成本":""}`:"未填平均成本"],["最弱",nm(lo.name),`${sym(lo.c)}${Math.abs(lo.c).toFixed(2)}%`],["最穩",nm(hi.name),`${sym(hi.c)}${Math.abs(hi.c).toFixed(2)}%`]];
+    body=T(40,150,30,"今日",'fill="#444"')+T(40,290,150,`${sym(dp)}${Math.abs(dp).toFixed(2)}%`,'font-weight="900"')+T(40,370,48,money(day),'font-weight="500"')+T(40,450,28,`${it.length} 檔・下跌 ${down}・上漲 ${up}`,'fill="#444"')+`<line x1="700" y1="120" x2="700" y2="570" stroke="#bbb" stroke-width="3"/>`;
+    rowsR.forEach(([k,v,s],i)=>{const y=170+i*110;body+=T(740,y,28,k,'fill="#444"')+T(1206,y,40,esc(v),'font-weight="900" text-anchor="end"')+(s?T(1206,y+38,24,s,'fill="#444" text-anchor="end"'):"")+(i<3?dash(y+62):"")});
+  }
+  $("preview").innerHTML=`<svg viewBox="0 0 1250 610" width="100%" role="img" aria-label="持股卡片預覽" style="font-family:'Noto Sans TC',sans-serif">
+  <rect x="4" y="4" width="1242" height="602" rx="30" fill="#fff" stroke="#000" stroke-width="5"/>
+  <g transform="translate(40,58)"><circle cx="22" r="22" fill="#000"/><polyline points="8,8 17,-2 25,4 37,-10" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <g fill="#000"><text x="100" y="72" font-size="40" font-weight="900">台股持股</text><text x="1206" y="72" font-size="30" fill="#444" text-anchor="end">預覽</text>${body}</g></svg>`;
+}
+
+$("list").addEventListener("input",e=>{
+  const i=e.target.dataset.i;if(i===undefined)return;
+  let v=e.target.value;
+  if(e.target.dataset.k==="code"){v=v.toUpperCase().trim();if(v!==e.target.value)e.target.value=v}
+  rows[i][e.target.dataset.k]=v;
+  $("status").textContent="有尚未儲存的變更";
+  refresh();
+});
+$("list").addEventListener("click",e=>{const d=e.target.dataset.del;if(d!==undefined){rows.splice(d,1);render();$("status").textContent="有尚未儲存的變更"}});
+$("add").addEventListener("click",()=>{rows.push({code:"",shares:"",cost:""});render();document.querySelector(`[data-i="${rows.length-1}"][data-k="code"]`).focus()});
+["mh","ha","rs"].forEach(id=>$(id).addEventListener("input",()=>{$("status").textContent="有尚未儲存的變更";update()}));
+$("save").addEventListener("click",async()=>{
+  const data={holdings:rows.map(r=>({code:r.code,shares:Number(r.shares),avg_cost:r.cost===""?null:Number(r.cost)})),display:{market_hours_only:$("mh").checked,hide_after_hours:$("ha").checked,rotate_seconds:Number($("rs").value)}};
+  const tok=$("tok").value;
+  try{localStorage.setItem("holdings_token",tok)}catch(e){}
+  $("save").disabled=true;$("status").textContent="儲存中…";
+  try{
+    const r=await fetch("/api/holdings",{method:"POST",headers:{"Content-Type":"application/json","X-Holdings-Token":tok},body:JSON.stringify(data)});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){$("status").textContent=j.errors?"儲存失敗："+Object.values(j.errors).join("；"):"儲存失敗："+(j.error||r.status);return}
+    const n=new Date();$("status").textContent=`已儲存 ${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}`;
+    // 後端存檔後會背景查一次報價(至少間隔 5 秒),稍後重抓快照回填名稱
+    setTimeout(loadSnapshot,8000);setTimeout(loadSnapshot,15000);
+  }catch(e){$("status").textContent="儲存失敗：連不到伺服器"}
+  finally{update()}
+});
+async function loadSnapshot(){
+  try{
+    const s=await (await fetch("/api/snapshot",{cache:"no-store"})).json();
+    SAMPLE={};
+    for(const q of s.items||[])if(q.price&&q.prev_close)SAMPLE[q.code]=[q.name,q.price,(q.price-q.prev_close)/q.prev_close*100];
+    NOQUOTE=new Set((s.errors||[]).filter(e=>!(s.items||[]).some(q=>q.code===e.code)).map(e=>e.code));
+    quoteDate=s.quote_date?`${s.quote_date.slice(4,6)}/${s.quote_date.slice(6,8)}`:"";
+    refresh();
+  }catch(e){}
+}
+(async()=>{
+  try{$("tok").value=localStorage.getItem("holdings_token")||""}catch(e){}
+  try{
+    const h=await (await fetch("/api/holdings",{cache:"no-store"})).json();
+    if(h.holdings&&h.holdings.length)rows=h.holdings.map(x=>({code:x.code,shares:String(x.shares),cost:x.avg_cost==null?"":String(x.avg_cost)}));
+    const d=h.display||{};$("mh").checked=d.market_hours_only!==false;$("ha").checked=!!d.hide_after_hours;$("rs").value=d.rotate_seconds||60;
+  }catch(e){$("status").textContent="讀取設定失敗"}
+  render();
+  await loadSnapshot();
+})();
+render();
+</script>
+</body>
+</html>
