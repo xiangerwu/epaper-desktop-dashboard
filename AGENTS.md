@@ -29,7 +29,7 @@ app/main.py (FastAPI):  GET /  即時渲染   ·   GET /health   ·   app/device
 | `app/net.py` | 共用 httpx client。**放寬 Py3.14 的 `VERIFY_X509_STRICT`**,否則 CWA 憑證會被擋 |
 | `app/cache.py` | SQLite 存 `{source: (json_payload, updated_at)}`;`put/get`,`get` 附 `age_seconds` |
 | `app/collectors/base.py` | `Collector` ABC:`source`、`interval_seconds`、`fetch()`;`run()` 吞例外保留舊快取 |
-| `app/collectors/*.py` | 各來源:weather / air / anthropic_usage / codex_usage / routine / steam / stocks;openrouter 保留 |
+| `app/collectors/*.py` | 各來源:weather / air / anthropic_usage / codex_usage / routine / steam / stocks / funds / fx;openrouter 保留 |
 | `app/holdings.py` | 持股設定 `data/holdings.json` 存讀(原子寫入)、驗證、盤中判斷、卡片總覽計算 |
 | `app/funds.py` | 基金設定 `data/funds.json` 存讀、驗證、卡片總覽計算(淨值 × 單位數 × 臺銀即期買入) |
 | `app/collectors/__init__.py` | `COLLECTORS` 清單;OpenRouter 目前不註冊 |
@@ -59,13 +59,10 @@ app/main.py (FastAPI):  GET /  即時渲染   ·   GET /health   ·   app/device
   卡片沿用 Steam 卡片的 class(`.card.steam`、`.steam-cols`、`.steam-stat`),別另寫一套框線/虛線。
 - **基金卡片**:同上模式,輪播順序 Steam → 股票 → 基金(不存在的卡片跳過)。排程 `cron_hour="8,21"`、
   `cron_minute=30`(base 支援 `cron_hour`)。設定頁用 FundClear 搜尋加入,存 `fundclear_code`+`site`+`isin`。
-- **農民曆宜忌**:`collectors/almanac.py` 爬好日網(goodaytw.com)**首頁**的今日宜忌,顯示在股票卡左欄。
-  robots.txt 禁止日期頁 `/20*-*-*`,只能抓首頁;一天 00:05/06:05/12:05(後兩次是重試)。頁面日期 ≠ 今天
-  就不採用,看板也只顯示 date == 今天的資料。解析前先移除 `<style>`(MUI SSR 會把 style 插在標籤與內容之間),
-  只取日期標頭後第一組(頁面後段有各時辰宜忌)。
-- **今日電網**:`collectors/power.py` 每 10 分鐘抓台電開放資料(data.gov.tw/dataset/8931)各類型「小計」列,
-  基金卡左欄每次渲染隨機顯示一種(佔全台 %、MW、資料時間)。開放資料實測會停更數小時,所以一定要顯示時間。
-  不要算「發電量/裝置容量」:小計列兩者統計範圍不同(燃氣 106%、汽電共生 294%)。台電官網 genary.json 會擋爬蟲。
+- **匯率**:`collectors/fx.py` 每小時第 10 分抓臺銀牌告 CSV(與基金共用 `funds.fetch_bot_csv`),
+  存 USD/JPY 即期買賣中價(「1 外幣 = ? 台幣」)。股票卡左欄顯示「1 台幣 = ? 日圓」(倒數)、基金卡左欄顯示
+  「1 美元 = ? 台幣」。較前日漲跌靠 payload 的 `prev`:牌告日期換日時把上一筆滾進 prev(`fx.roll`)。
+  (曾放過農民曆宜忌、台電電網,已移除。)
 - **輪播隱藏按鈕**:點右下卡片標題左側 LOGO(`h2 .ttl .ic`)立即切到下一張並重新計時,外觀刻意不變。
 - **秘密**:只進 `.env`(已 gitignore);`./adb/`(Windows 二進位)與 `data/` 也已忽略。
 

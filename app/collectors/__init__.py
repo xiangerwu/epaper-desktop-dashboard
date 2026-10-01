@@ -6,8 +6,7 @@ from .air import AirQualityCollector
 from .anthropic_usage import AnthropicUsageCollector
 from .codex_usage import CodexUsageCollector
 from .funds import FundsCollector
-from .power import PowerCollector
-from .almanac import AlmanacCollector
+from .fx import FxCollector
 from .routine import RoutineCollector
 from .steam import SteamCollector
 from .stocks import StocksCollector
@@ -22,8 +21,7 @@ COLLECTORS = [
     SteamCollector(),
     StocksCollector(),
     FundsCollector(),
-    AlmanacCollector(),
-    PowerCollector(),
+    FxCollector(),
 ]
 
 # OpenRouter 程式與設定保留,等看板需要顯示時再註冊。

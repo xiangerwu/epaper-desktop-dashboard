@@ -168,13 +168,18 @@ def parse_bot_csv(text: str, filename: str = "") -> dict:
     return fx
 
 
-async def fetch_fx() -> dict:
+async def fetch_bot_csv() -> tuple[str, str]:
+    """臺銀牌告 CSV → (內容, content-disposition);匯率卡片的 collectors/fx.py 也用這個。"""
     async with client() as c:
         r = await c.get(BOT_CSV, headers=BROWSER, follow_redirects=True)
     r.raise_for_status()
     if "csv" not in (r.headers.get("content-type") or ""):
         raise RuntimeError("臺銀回傳非 CSV(可能是機器人驗證頁)")
-    return parse_bot_csv(r.text, r.headers.get("content-disposition") or "")
+    return r.text, r.headers.get("content-disposition") or ""
+
+
+async def fetch_fx() -> dict:
+    return parse_bot_csv(*await fetch_bot_csv())
 
 
 # ---------- collector ----------

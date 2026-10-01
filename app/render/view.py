@@ -5,7 +5,6 @@
 """
 from __future__ import annotations
 
-import random
 from datetime import datetime
 
 from .. import cache, funds as funds_mod, holdings
@@ -30,6 +29,27 @@ def _reset_time_label(epoch: float | None) -> str:
         return datetime.fromtimestamp(epoch).astimezone().strftime("%m/%d %H:%M")
     except (ValueError, TypeError, OSError):
         return ""
+
+
+def _fx(p: dict | None, code: str, base: str, quote: str, *, invert: bool, digits: int) -> dict | None:
+    """匯率快取 → 卡片左欄:「1 台幣 = 4.963 日圓」+ 較前一牌告日漲跌 + 臺銀牌告時間。
+
+    invert:快取存的是「1 外幣 = ? 台幣」(臺銀中價),日圓要倒過來顯示成 1 台幣換幾日圓。
+    """
+    if not p or not p.get(code):
+        return None
+    conv = (lambda v: 1 / v) if invert else (lambda v: v)
+    value = conv(p[code])
+    prev = (p.get("prev") or {}).get(code)
+    change = None
+    if prev:
+        pct = (value - conv(prev)) / conv(prev) * 100
+        change = f"較前日 {pct:+.2f}%" if round(pct, 2) else "與前日持平"
+    today = datetime.now(holdings.TPE).strftime("%Y-%m-%d")
+    # 左欄窄:今天只標時間,非今天(週末/連假)只標日期
+    stamp = p["time"] if p["date"] == today else f'{p["date"][5:7]}/{p["date"][8:10]}'
+    return {"code": code, "label": f"{base} =", "value": f"{value:.{digits}f}", "unit": quote,
+            "change": change, "stamp": stamp}
 
 
 def _weather_icon(desc: str) -> str:
@@ -102,12 +122,10 @@ def build() -> dict:
     disp = config["display"]
     if stocks and disp["hide_after_hours"] and not holdings.in_trading_session():
         stocks = None
+    fx_c = cache.get("fx")
+    fx = fx_c["payload"] if fx_c else None
     if stocks:
-        # 農民曆宜忌:只在快取是今天的資料時顯示,不拿昨天的充當今天
-        alm_c = cache.get("almanac")
-        alm = alm_c["payload"] if alm_c else None
-        today = datetime.now(holdings.TPE).strftime("%Y-%m-%d")
-        stocks["almanac"] = alm if alm and alm.get("date") == today else None
+        stocks["fx"] = _fx(fx, "JPY", "1 台幣", "日圓", invert=True, digits=3)
 
     # 基金:接在股票後輪播;display.enabled = false 時跳過。
     funds_cfg = funds_mod.load()
@@ -115,14 +133,7 @@ def build() -> dict:
     funds = (funds_mod.summarize(funds_cfg, funds_c["payload"] if funds_c else None)
              if funds_cfg["display"]["enabled"] else None)
     if funds:
-        # 今日電網:每次渲染(頁面自動刷新)隨機挑一個發電類型
-        power_c = cache.get("power")
-        p = power_c["payload"] if power_c else None
-        if p and p.get("types"):
-            t = random.choice(p["types"])
-            today = datetime.now(holdings.TPE).strftime("%Y-%m-%d")
-            stamp = p["time"] if p["date"] == today else f'{p["date"][5:7]}/{p["date"][8:10]} {p["time"]}'
-            funds["power"] = {**t, "stamp": stamp}
+        funds["fx"] = _fx(fx, "USD", "1 美元", "台幣", invert=False, digits=2)
 
     return {
         "generated_at": now.strftime("%Y/%m/%d  %H:%M"),

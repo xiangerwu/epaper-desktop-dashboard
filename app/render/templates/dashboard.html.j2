@@ -1,4 +1,10 @@
-{% import 'icons.html.j2' as ic %}<!doctype html>
+{% import 'icons.html.j2' as ic %}{% macro fx_block(fx, compact=false) %}<div class="stk-fx">
+              <div class="fx-head"><div class="fx-txt">
+                <div class="fx-name">{{ fx.label }}</div>
+                <div class="fx-val">{{ fx.value }}<small> {{ fx.unit }}</small></div>
+              </div>{{ ic.flag_jp('fx-flag') if fx.code == 'JPY' else ic.flag_us('fx-flag') }}</div>
+              {% if not compact %}<div class="fx-sub">{{ fx.change or '' }}{% if fx.change %}・{% endif %}{{ fx.stamp }}</div>{% endif %}
+            </div>{% endmacro %}<!doctype html>
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
@@ -181,24 +187,17 @@
   .rot > .card[hidden] { display:none; }
   /* 股票/基金卡左欄依內容寬(大數字多寬就多寬),省下的寬度給右欄;不沿用 Steam 左欄固定 40%。 */
   .stk-left { flex:0 0 auto; justify-content:flex-start; gap:0.8vmin; padding:0.6vmin 1.8vmin 0.6vmin 0; }
-  .stk-left .stk-count { margin-top:auto; }  /* 大數字靠上,檔數統計貼底,中間放農民曆宜忌 */
-  /* 宜忌:width:0 + min-width:100% 讓長清單不撐寬左欄;每列最多 2 行 */
-  .stk-alm { width:0; min-width:100%; margin-top:1vmin; }
-  .stk-alm div { font-size:2.1vmin; line-height:1.35; display:-webkit-box; -webkit-box-orient:vertical;
-    -webkit-line-clamp:2; overflow:hidden; }
-  .stk-alm div + div { margin-top:0.6vmin; }
-  .stk-alm span { white-space:nowrap; margin-right:0.6vmin; }  /* 詞不拆行(避免「餘事/勿取」) */
-  .stk-alm b { display:inline-block; width:2.6vmin; height:2.6vmin; line-height:2.3vmin; text-align:center;
-    border-radius:50%; font-size:1.8vmin; margin-right:0.6vmin; vertical-align:0.1vmin;
-    border:0.3vmin solid var(--ink); }
-  .stk-alm .yi b { background:var(--ink); color:#fff; }  /* 宜:實心;忌:空心 */
-  /* 基金卡左欄:今日電網(隨機一種發電類型) */
-  .stk-power { width:0; min-width:100%; margin-top:1vmin; padding-top:0.8vmin;
+  .stk-left .stk-count { margin-top:auto; }  /* 大數字靠上,檔數統計貼底,中間放匯率 */
+  /* 匯率(股票卡:台幣→日圓;基金卡:美元→台幣)。width:0 + min-width:100% 讓長字不撐寬左欄 */
+  .stk-fx { width:0; min-width:100%; margin-top:1vmin; padding-top:0.8vmin;
     border-top:0.3vmin dashed var(--soft); font-size:2.1vmin; line-height:1.35; }
-  .stk-power .pw-name { font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .stk-power .pw-share { font-size:3.3vmin; font-weight:800; line-height:1.15; font-variant-numeric:tabular-nums; }
-  .stk-power .pw-share small { font-size:2.1vmin; font-weight:500; color:var(--mute); }
-  .stk-power .pw-sub { color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .stk-fx .fx-head { display:flex; align-items:center; gap:1vmin; }
+  .stk-fx .fx-txt { flex:1; min-width:0; }
+  .stk-fx .fx-flag { flex:none; width:7.2vmin; height:4.8vmin; color:var(--ink); display:block; }
+  .stk-fx .fx-name { font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .stk-fx .fx-val { font-size:3.3vmin; font-weight:800; line-height:1.15; font-variant-numeric:tabular-nums; }
+  .stk-fx .fx-val small { font-size:2.1vmin; font-weight:500; color:var(--mute); }
+  .stk-fx .fx-sub { color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #cardStocks .steam-cols, #cardFunds .steam-cols { gap:1.8vmin; }
   .stk-left .k { font-size:2.7vmin; color:var(--mute); }
   .stk-big { font-size:calc(6.4vmin - 2pt); font-weight:900; line-height:1.1; font-variant-numeric:tabular-nums;
@@ -344,7 +343,7 @@
               <div class="stk-big">{{ stocks.day_pct }}</div>
               <div class="stk-pnl">{{ stocks.day_pnl }}</div>
             </div>
-            {% if stocks.almanac %}<div class="stk-alm"><div class="yi"><b>宜</b>{% for w in stocks.almanac.yi %}<span>{{ w }}</span> {% endfor %}</div>{% if not stocks.missing %}<div class="ji"><b>忌</b>{% for w in stocks.almanac.ji %}<span>{{ w }}</span> {% endfor %}</div>{% endif %}</div>{% endif %}
+            {% if stocks.fx %}{{ fx_block(stocks.fx, compact=stocks.missing) }}{% endif %}
             <div class="stk-count">{{ stocks.count }} 檔・下跌 {{ stocks.down }}・上漲 {{ stocks.up }}{% if stocks.missing %}<br>{{ stocks.missing }} 檔無報價{% endif %}</div>
           </div>
           <div class="steam-right stk-right">
@@ -370,11 +369,7 @@
               <div class="stk-big">{{ funds.day_pct }}</div>
               <div class="stk-pnl">{{ funds.day_pnl }}</div>
             </div>
-            {% if funds.power and not (funds.earliest and funds.missing) %}{% set pw = funds.power %}<div class="stk-power">
-              <div class="pw-name">今日電網・{{ pw.name }}</div>
-              <div class="pw-share">{{ "%.1f"|format(pw.share) }}%<small> 佔全台</small></div>
-              <div class="pw-sub">{{ "{:,.0f}".format(pw.mw) }} MW・{{ pw.stamp }}</div>
-            </div>{% endif %}
+            {% if funds.fx %}{{ fx_block(funds.fx, compact=funds.earliest and funds.missing) }}{% endif %}
             <div class="stk-count">總市值 {{ funds.total_value }}{% if funds.earliest %}<br>最早淨值 {{ funds.earliest }}{% endif %}{% if funds.missing %}<br>{{ funds.missing }} 檔無淨值{% endif %}</div>
           </div>
           <div class="steam-right stk-right">

@@ -26,6 +26,11 @@
 
 {% macro fund(cls='') %}<svg class="ic {{ cls }}" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor" stroke="none"/><path d="M12 5.5a6.5 6.5 0 1 1-6.5 6.5H12z" fill="#fff" stroke="none"/></svg>{% endmacro %}
 
+{# 匯率卡片用的國旗(3:2,e-ink 黑白:紅 → 黑)。外框 stroke,寬高由外層 CSS 決定。 #}
+{% macro flag_jp(cls='') %}<svg class="{{ cls }}" viewBox="0 0 30 20"><rect x="0.6" y="0.6" width="28.8" height="18.8" fill="#fff" stroke="currentColor" stroke-width="1.2"/><circle cx="15" cy="10" r="6" fill="currentColor"/></svg>{% endmacro %}
+
+{% macro flag_us(cls='') %}<svg class="{{ cls }}" viewBox="0 0 30 20"><rect width="30" height="20" fill="#fff"/>{% for i in range(0, 13, 2) %}<rect y="{{ '%.3f'|format(i * 20 / 13) }}" width="30" height="{{ '%.3f'|format(20 / 13) }}" fill="currentColor"/>{% endfor %}<rect width="12" height="{{ '%.3f'|format(7 * 20 / 13) }}" fill="currentColor"/>{% for r in range(4) %}{% for c in range(5) %}<circle cx="{{ 1.6 + c * 2.2 }}" cy="{{ 1.6 + r * 2.4 }}" r="0.55" fill="#fff"/>{% endfor %}{% endfor %}<rect x="0.6" y="0.6" width="28.8" height="18.8" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>{% endmacro %}
+
 {% macro gear(cls='') %}<svg class="ic {{ cls }}" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>{% endmacro %}
 
 {% macro refresh(cls='') %}<svg class="ic {{ cls }}" viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 1 1-2.4-5.9"/><path d="M20.5 3.5v4.2h-4.2"/></svg>{% endmacro %}
