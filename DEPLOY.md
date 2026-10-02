@@ -47,6 +47,7 @@ MOENV_API_KEY=你的環境部API金鑰
 AQI_SITE=斗六
 AQI_COUNTY=雲林縣
 DASHBOARD_URL=http://<主機IP>:8000/     # 用 hostname -I 查主機的區網 IP
+HOLDINGS_TOKEN=自訂一串權杖              # 選填;持股/基金設定頁存檔用
 ```
 
 ADB 相關先留預設(`REFRESH_VIA_ADB=false`),等 C 段驗證通再開。

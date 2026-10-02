@@ -13,6 +13,8 @@
 - 天氣與空氣品質：中央氣象署 CWA、環境部 MOENV。
 - AI 額度：Claude Code、Codex CLI 的本機登入資訊。
 - Steam 狀態：等級、成就、徽章、近期遊玩時數。
+- 台股持股與基金：TWSE 即時報價、基金資訊觀測站淨值；在 `/settings`、`/settings/funds` 設定，與 Steam 卡片輪播。
+- 匯率：臺灣銀行牌告，股票卡顯示 1 台幣兌日圓、基金卡顯示 1 美元兌台幣（附較前日漲跌）。
 - 作息區：時段提示、50 分鐘番茄鐘、依狀態切換的桌寵與對話氣泡。
 - 斷線降級：單一來源失敗時保留舊快取，不清空整個畫面。
 - 裝置控制：ADB 喚醒、開啟看板、刷新與真機截圖。
@@ -46,6 +48,7 @@ Copy-Item .env.example .env
 | 天氣 | `CWA_API_KEY`、`CWA_LOCATION` |
 | AQI | `MOENV_API_KEY`、`AQI_SITE`、`AQI_COUNTY` |
 | Steam | `STEAM_API_KEY`、`STEAM_ID` |
+| 台股持股、基金設定頁存檔 | `HOLDINGS_TOKEN`（自訂一串權杖；空 = 設定頁不能存檔） |
 | Claude | 自動讀取 `~/.claude/.credentials.json` |
 | Codex | 自動讀取 `~/.codex/auth.json` |
 
@@ -107,6 +110,9 @@ DEVICE_BROWSER_COMPONENT=de.ozerov.fully/.MainActivity
 | 天氣、AQI | 每小時整點 |
 | Steam | 每小時 `:00`、`:30` |
 | Claude、Codex、作息提示 | 每 10 分鐘 |
+| 台股持股 | 每小時整點（可設只在盤中） |
+| 基金淨值 | 每天 08:30、21:30 |
+| 匯率 | 每小時 `:10` |
 
 服務啟動時會並行收集一次。`GET /` 只渲染現有快取；`/refresh` 才會重新執行 collectors。
 
@@ -185,6 +191,6 @@ pet/sound/end/       # 喝水休息音效（可放多個，檔名不限）
 
 ## 現況
 
-已完成 live HTML、CWA、AQI、Claude、Codex、Steam、番茄鐘、桌寵、Fully Kiosk 與 ADB 真機流程。
+已完成 live HTML、CWA、AQI、Claude、Codex、Steam、台股持股、基金、匯率、番茄鐘、桌寵、Fully Kiosk 與 ADB 真機流程。
 
 待辦：脫離 USB、Fully 鎖定與開機自啟、e-ink full-refresh 廣播、跨機憑證同步、番茄鐘隨機音效（見上方規劃），以及預留的 Notion / 一般 DB connector。

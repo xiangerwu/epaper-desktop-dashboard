@@ -33,7 +33,7 @@ Android 11,用 **Fully Kiosk** 全螢幕),主機另可用 **ADB** 控制刷新�
 - **輕量**:直接吐 HTML,省磁碟與記憶體,無需 Chromium。
 - **三層解耦**:任一 API 失敗,渲染讀「最後一次成功」的舊快取續畫,只標精簡資料年齡,畫面不空白。
 - **並行首抓**:啟動時同時抓各啟用來源,單一逾時不會讓其他來源排隊。
-- **目前顯示**:頁首日期／星期／更新時間，左欄 天氣＋作息提醒卡(番茄鐘＋桌寵)、右欄 Claude／Codex 額度＋Steam 狀態。
+- **目前顯示**:頁首日期／星期／更新時間，左欄 天氣＋作息提醒卡(番茄鐘＋桌寵)、右欄 Claude／Codex 額度＋右下格位輪播(Steam → 台股持股 → 基金;股票卡附台幣兌日圓、基金卡附美元兌台幣匯率)。
 
 ---
 
@@ -64,8 +64,9 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 | Claude 額度 | `api.anthropic.com/api/oauth/usage` | `~/.claude/.credentials.json`(Claude Code 登入即有) | 不用 |
 | Codex 額度 | `chatgpt.com/backend-api/wham/usage` | `~/.codex/auth.json`(Codex CLI 登入即有) | 不用 |
 | 作息提醒 | 本機時間 + SQLite 上次循環狀態 | 無 | 不用 |
-| 基金 | 集保「基金資訊觀測站」fundclear.com.tw 五日淨值;匯率:臺銀牌告即期買入 | 無;基金在 `/settings/funds` 搜尋加入,存 `data/funds.json` | 同上,共用 `HOLDINGS_TOKEN` |
+| 基金 | 集保「基金資訊觀測站」fundclear.com.tw 五日淨值;外幣換算:臺銀牌告即期買入 | 無;基金在 `/settings/funds` 搜尋加入,存 `data/funds.json` | 同上,共用 `HOLDINGS_TOKEN` |
 | 台股持股 | TWSE MIS `getStockInfo.jsp`(上市/上櫃整批一次查) | 無;持股在 `/settings` 輸入,存 `data/holdings.json` | 要設 `HOLDINGS_TOKEN` 才能存檔 |
+| 匯率 | 臺灣銀行牌告 CSV `rate.bot.com.tw/xrt/flcsv/0/day`(取 USD、JPY 即期買賣中價) | 無 | 不用 |
 | OpenRouter(預留) | `openrouter.ai/api/v1/credits` | `OPENROUTER_API_KEY` | 程式保留,目前不啟用 |
 
 **天氣金鑰**:到 <https://opendata.cwa.gov.tw/> 免費申請授權碼(`CWA-xxxx`),
@@ -83,7 +84,8 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 - Claude、Codex、作息提醒:每 600 秒更新。
 - 台股持股:每小時 `:00`;設定「只在盤中更新」時只在週一至週五 09:00–14:00 抓,其餘保留上次報價。
   設定頁存檔後會立刻補抓一次(回填股票名稱)。
-- 基金:每天 08:30、21:00(不分交易日)。境外基金淨值晚 1–2 個營業日屬正常。存檔後立刻補抓一次。
+- 基金:每天 08:30、21:30(不分交易日)。境外基金淨值晚 1–2 個營業日屬正常。存檔後立刻補抓一次。
+- 匯率:每小時 `:10`。「較前日」以前一個牌告日的最後一筆比較,剛部署的第一天不會顯示。
 - 啟動時所有啟用來源先並行抓一次。
 
 ### 基金
@@ -92,6 +94,7 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 用名稱搜尋基金 → 按「加入」,系統自動帶入 ISIN 與計價幣別(基金資訊觀測站不支援用 ISIN 搜尋);
 再填顯示名稱(最多 8 字)、單位數、投入成本(台幣總額,選填)。只支援不配息的累積型基金。
 外幣基金以臺灣銀行即期買入匯率換算台幣。卡片左欄是最新一個淨值日的漲跌,右欄是總獲利與市值前 3 檔。
+左欄下方顯示 1 美元兌台幣(臺銀即期中價,附美國國旗)與較前日漲跌。
 
 ### 台股持股
 
@@ -100,6 +103,7 @@ Copy-Item .env.example .env      # 填 CWA_API_KEY(見下節)
 持股卡片與 Steam 卡片共用右下格位,依「輪播間隔」輪流顯示;沒有持股時只顯示 Steam。
 勾「收盤後只顯示 Steam」則 13:30 後與週末不輪播持股。
 改股數/成本立即反映在卡片上(用最新快取報價重算),不必等下次抓價。
+股票卡左欄下方顯示 1 台幣兌日圓(臺銀即期中價,附日本國旗)與較前日漲跌。
 
 ### 作息提醒
 

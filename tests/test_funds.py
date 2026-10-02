@@ -109,7 +109,7 @@ class ParseTests(unittest.TestCase):
 
 
 class ScheduleTests(unittest.TestCase):
-    def test_funds_run_at_0830_and_2100(self) -> None:
+    def test_funds_run_at_0830_and_2130(self) -> None:
         from app import scheduler
         from app.collectors.funds import FundsCollector
 
