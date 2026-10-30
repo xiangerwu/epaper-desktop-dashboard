@@ -6,6 +6,7 @@
 [![Jinja2](https://img.shields.io/badge/Jinja2-templates-B41717?logo=jinja&logoColor=white)](https://jinja.palletsprojects.com/)
 [![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-deploy-A22846?logo=raspberrypi&logoColor=white)](PI_DEPLOY.md)
 [![Android](https://img.shields.io/badge/Android-Fully%20Kiosk-3DDC84?logo=android&logoColor=white)](https://www.fully-kiosk.com/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/xiangerwu/epaper-desktop-dashboard)](https://github.com/xiangerwu/epaper-desktop-dashboard/commits/main)
 [![Repo size](https://img.shields.io/github/repo-size/xiangerwu/epaper-desktop-dashboard)](https://github.com/xiangerwu/epaper-desktop-dashboard)
 
@@ -203,3 +204,7 @@ pet/sound/end/       # 喝水休息音效（可放多個，檔名不限）
 已完成 live HTML、CWA、AQI、Claude、Codex、Steam、台股持股、基金、匯率、番茄鐘、桌寵、Fully Kiosk 與 ADB 真機流程。
 
 待辦：脫離 USB、Fully 鎖定與開機自啟、e-ink full-refresh 廣播、跨機憑證同步、番茄鐘隨機音效（見上方規劃），以及預留的 Notion / 一般 DB connector。
+
+## 授權
+
+[MIT](LICENSE)
