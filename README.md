@@ -1,5 +1,14 @@
 # epaper-desktop-dashboard
 
+[![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.139-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![SQLite](https://img.shields.io/badge/SQLite-cache-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Jinja2](https://img.shields.io/badge/Jinja2-templates-B41717?logo=jinja&logoColor=white)](https://jinja.palletsprojects.com/)
+[![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-deploy-A22846?logo=raspberrypi&logoColor=white)](PI_DEPLOY.md)
+[![Android](https://img.shields.io/badge/Android-Fully%20Kiosk-3DDC84?logo=android&logoColor=white)](https://www.fully-kiosk.com/)
+[![Last commit](https://img.shields.io/github/last-commit/xiangerwu/epaper-desktop-dashboard)](https://github.com/xiangerwu/epaper-desktop-dashboard/commits/main)
+[![Repo size](https://img.shields.io/github/repo-size/xiangerwu/epaper-desktop-dashboard)](https://github.com/xiangerwu/epaper-desktop-dashboard)
+
 把電腦上的即時資料整理成一頁高對比電子紙看板。FastAPI 定時收集資料、SQLite 保留最後一次成功值、Jinja2 即時輸出 HTML；電子閱讀器只要用 kiosk 瀏覽器開啟網頁。
 
 實機環境：**HyRead Gaze Note Plus**、1404×1872、Android 11、Fully Kiosk。
